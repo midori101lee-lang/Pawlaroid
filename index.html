@@ -1,0 +1,763 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <meta name="theme-color" content="#FFF6E6">
+    <title>爪印显影 Pawlaroid · 宠物拍立得</title>
+    <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'><text y='26' font-size='26'>🐾</text></svg>">
+    <!-- 字体改为本地自托管（css/fonts.css，Google Fonts 国内常不可达导致白屏）；运行时仅拉取用到的字形分片 -->
+    <link rel="stylesheet" href="css/fonts.css">
+    <link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+    <!-- 启动遮罩：首屏资源就绪前显示，消除白屏；App.init 完成后移除（见 js/app.js _hideLoading） -->
+    <div id="appLoading" style="position:fixed;inset:0;z-index:9999;display:flex;flex-direction:column;align-items:center;justify-content:center;background:#f3e3c8;color:#8a6b48;font-family:'PingFang SC','Microsoft YaHei',sans-serif;">
+        <div style="font-size:48px;line-height:1;">🐾</div>
+        <div style="margin-top:14px;font-size:18px;font-weight:600;letter-spacing:1px;">Pawlaroid</div>
+        <div style="margin-top:6px;font-size:13px;opacity:.8;">正在准备你的拍立得…</div>
+    </div>
+    <script>
+        // 兜底：若初始化异常，6s 后强制隐藏遮罩，避免卡在启动页
+        window.__hideLoading = function () {
+            var e = document.getElementById('appLoading');
+            if (!e || e.dataset.hidden) return;
+            e.dataset.hidden = '1';
+            e.classList.add('hide');
+            setTimeout(function(){ if (e && e.parentNode) e.parentNode.removeChild(e); }, 400);
+        };
+        setTimeout(window.__hideLoading, 6000);
+        window.addEventListener('load', window.__hideLoading);
+    </script>
+
+    <!-- ==================== HOME VIEW ==================== -->
+    <div id="view-home" class="view view-active">
+        <div class="home-header">
+            <div class="brand">
+                <div class="brand-icon" aria-hidden="true">
+                    <svg width="32" height="32" viewBox="0 0 32 32">
+                        <ellipse cx="16" cy="20" rx="7" ry="6" fill="#FFA45C"/>
+                        <circle cx="9" cy="11" r="2.5" fill="#FFA45C"/>
+                        <circle cx="14" cy="7" r="2.5" fill="#FFA45C"/>
+                        <circle cx="20" cy="7" r="2.5" fill="#FFA45C"/>
+                        <circle cx="25" cy="11" r="2.5" fill="#FFA45C"/>
+                    </svg>
+                </div>
+                <div class="brand-text">
+                    <div class="brand-cn">爪印显影</div>
+                    <div class="brand-en">Pawlaroid</div>
+                </div>
+            </div>
+            <button class="settings-btn" aria-label="设置" onclick="App.openSettings()">
+                <svg width="22" height="22" viewBox="0 0 24 24" fill="none">
+                    <circle cx="12" cy="12" r="3" stroke="#6D4A33" stroke-width="1.8"/>
+                    <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z" stroke="#6D4A33" stroke-width="1.8"/>
+                </svg>
+            </button>
+        </div>
+
+        <div class="home-content">
+            <p class="home-tagline">
+                <span class="home-tagline-cn">给你的毛孩子</span>
+                <span class="home-tagline-em">拍一张拍立得吧</span>
+            </p>
+
+            <!-- 拍立得主视觉（PNG 资产） -->
+            <div class="home-hero">
+                <img class="home-hero-img" src="public-assets/home/hero.webp" alt="Pawlaroid 宠物拍立得相机" draggable="false"/>
+                <div class="home-hero-shadow"></div>
+                <!-- 装饰小元素 -->
+                <span class="home-deco home-deco-1">咔嚓～</span>
+                <span class="home-deco home-deco-2">记录它的<br>可爱瞬间</span>
+                <span class="home-deco home-deco-heart">💛</span>
+                <span class="home-deco home-deco-blossom">✿</span>
+            </div>
+
+            <!-- 咔嚓一下 骨头 CTA（PNG 资产，文字已 baked in，唯一拍照入口） -->
+            <button class="btn-bone-cta" onclick="App.goUpload()" aria-label="咔嚓一下，开始拍照">
+                <img class="btn-bone-cta-img" src="public-assets/home/bone-cta.webp" alt="咔嚓一下" draggable="false"/>
+            </button>
+        </div>
+
+        <!-- 最近一张回忆（侧边通知式浮窗：锚定 #view-home 右下，不占竖向陈列空间；无回忆时隐藏） -->
+        <div class="home-recent" id="homeRecent" hidden>
+            <button class="home-recent-go" type="button" aria-label="查看时光机">
+                <img class="home-recent-img" alt="最近一张拍立得" draggable="false"/>
+                <span class="home-recent-arrow">查看时光机 ›</span>
+            </button>
+        </div>
+        <!-- 底部导航已移至全局 #tabBar（首页 / 时光机 / 展示墙），仅在该三视图显示 -->
+
+    </div>
+
+    <!-- ==================== UPLOAD VIEW ==================== -->
+    <div id="view-upload" class="view">
+        <div class="page-header">
+            <button class="btn-back" onclick="App.goHome()">
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none">
+                    <path d="M15 18l-6-6 6-6" stroke="#6D4A33" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                </svg>
+            </button>
+            <span class="page-title">上传照片</span>
+            <span class="page-step">1 / 5</span>
+        </div>
+
+        <div class="upload-content">
+            <div class="upload-hint-card">
+                <div class="upload-hint-icon">🐾</div>
+                <p class="upload-hint-title">选择一张宠物的照片吧</p>
+                <p class="upload-hint-text">建议正面或侧脸，毛发清晰的照片效果更好</p>
+            </div>
+
+            <div class="upload-zone" id="uploadZone">
+                <div class="upload-prompt" id="uploadPrompt">
+                    <div class="upload-icon">
+                        <svg width="56" height="56" viewBox="0 0 64 64" fill="none">
+                            <rect x="6" y="18" width="52" height="38" rx="6" stroke="#FFA45C" stroke-width="2.5"/>
+                            <path d="M22 18 L26 10 L38 10 L42 18" stroke="#FFA45C" stroke-width="2.5" stroke-linejoin="round"/>
+                            <circle cx="32" cy="37" r="11" stroke="#FFA45C" stroke-width="2.5"/>
+                            <circle cx="32" cy="37" r="6" stroke="#FFC97A" stroke-width="2" opacity="0.6"/>
+                            <circle cx="50" cy="26" r="2" fill="#FFA45C"/>
+                        </svg>
+                    </div>
+                    <p class="upload-text">点击或拖拽上传</p>
+                    <p class="upload-sub">JPG · PNG</p>
+                </div>
+                <div class="upload-preview" id="uploadPreview" style="display:none;">
+                    <img id="previewImg" alt="预览"/>
+                    <button class="btn-reupload" onclick="App.resetUpload()">
+                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none">
+                            <path d="M4 12a8 8 0 0 1 14-5.3L20 4M20 4v5h-5M20 12a8 8 0 0 1-14 5.3L4 20M4 20v-5h5" stroke="#FFF6E6" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                        </svg>
+                        重选
+                    </button>
+                </div>
+                <input type="file" id="fileInput" accept="image/*" style="display:none;">
+            </div>
+
+            <button class="btn-next-cta" id="btnToCrop" onclick="App.goPet()" disabled>
+                <span>下一步：认识它</span>
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none">
+                    <path d="M9 18l6-6-6-6" stroke="#FFF6E6" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                </svg>
+            </button>
+        </div>
+    </div>
+
+    <!-- ==================== PET INFO VIEW ==================== -->
+    <div id="view-pet" class="view">
+        <div class="page-header">
+            <button class="btn-back" onclick="App.goUpload()">
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none">
+                    <path d="M15 18l-6-6 6-6" stroke="#6D4A33" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                </svg>
+            </button>
+            <span class="page-title">宠物信息</span>
+            <span class="page-step">2 / 5</span>
+        </div>
+
+        <div class="pet-content">
+            <p class="pet-title">这是谁的珍贵瞬间？</p>
+
+            <div class="pet-type-card">
+                <p class="pet-type-label">TA 是？</p>
+                <div class="pet-types">
+                    <button class="pet-type-btn" data-type="dog" onclick="App.selectPetType('dog')">
+                        <div class="pet-type-emoji">🐶</div>
+                        <div class="pet-type-name">狗狗</div>
+                    </button>
+                    <button class="pet-type-btn active" data-type="cat" onclick="App.selectPetType('cat')">
+                        <div class="pet-type-emoji">🐱</div>
+                        <div class="pet-type-name">猫咪</div>
+                    </button>
+                    <button class="pet-type-btn" data-type="other" onclick="App.selectPetType('other')">
+                        <div class="pet-type-emoji">🐾</div>
+                        <div class="pet-type-name">其他</div>
+                    </button>
+                </div>
+            </div>
+
+            <div class="pet-name-card">
+                <p class="pet-name-label">TA叫什么名字呢</p>
+                <input type="text" id="petNameInput" class="pet-name-input" placeholder="小家伙的名字" maxlength="20" oninput="App.setPetName(this.value)"/>
+            </div>
+
+            <button class="btn-next-cta" onclick="App.goCrop()">
+                <span>下一步：调整位置</span>
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none">
+                    <path d="M9 18l6-6-6-6" stroke="#FFF6E6" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                </svg>
+            </button>
+        </div>
+    </div>
+
+    <!-- ==================== CROP VIEW ==================== -->
+    <div id="view-crop" class="view">
+        <div class="page-header">
+            <button class="btn-back" onclick="App.goPet()">
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none">
+                    <path d="M15 18l-6-6 6-6" stroke="#6D4A33" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                </svg>
+            </button>
+            <span class="page-title">调整位置</span>
+            <span class="page-step">3 / 5</span>
+        </div>
+
+        <div class="crop-content">
+            <p class="crop-hint">
+                <span class="hint-emoji">🐾</span>
+                调整一下它在拍立得里的位置吧
+            </p>
+
+            <div class="crop-stage" id="cropStage">
+                <div class="crop-frame" id="cropFrame">
+                    <canvas id="cropCanvas"></canvas>
+                    <div class="crop-mask"></div>
+                    <div class="crop-grid">
+                        <span></span><span></span><span></span>
+                        <span></span><span></span><span></span>
+                        <span></span><span></span><span></span>
+                    </div>
+                </div>
+            </div>
+
+            <div class="crop-controls">
+                <div class="zoom-control">
+                    <span class="zoom-label">缩放</span>
+                    <button class="zoom-btn" onclick="Cropper.zoom(-0.1)">
+                        <svg width="18" height="18" viewBox="0 0 24 24" fill="none">
+                            <path d="M5 12h14" stroke="#6D4A33" stroke-width="2" stroke-linecap="round"/>
+                        </svg>
+                    </button>
+                    <input type="range" class="zoom-slider" id="zoomSlider" min="0.5" max="3" step="0.05" value="1" oninput="Cropper.setZoom(this.value)">
+                    <button class="zoom-btn" onclick="Cropper.zoom(0.1)">
+                        <svg width="18" height="18" viewBox="0 0 24 24" fill="none">
+                            <path d="M5 12h14M12 5v14" stroke="#6D4A33" stroke-width="2" stroke-linecap="round"/>
+                        </svg>
+                    </button>
+                </div>
+                <button class="btn-reset-zoom" onclick="Cropper.reset()">重置</button>
+            </div>
+
+            <button class="btn-next-cta" onclick="App.goRecipe()">
+                <span>选胶片配方</span>
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none">
+                    <path d="M9 18l6-6-6-6" stroke="#FFF6E6" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                </svg>
+            </button>
+        </div>
+    </div>
+
+    <!-- ==================== RECIPE SELECTION VIEW ==================== -->
+    <div id="view-recipe" class="view">
+        <div class="page-header">
+            <button class="btn-back" onclick="App.goCrop()">
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none">
+                    <path d="M15 18l-6-6 6-6" stroke="#6D4A33" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                </svg>
+            </button>
+            <span class="page-title">胶片与相纸</span>
+            <span class="page-step">4 / 5</span>
+        </div>
+
+        <div class="recipe-content">
+            <!-- 预览：相纸 PNG + 照片 -->
+            <div class="recipe-preview-wrap">
+                <div class="recipe-polaroid" id="recipePolaroid">
+                    <img class="recipe-frame-bg" id="recipeFrameBg" src="public-assets/frames/classic_white.webp" alt="" aria-hidden="true" draggable="false" loading="lazy"/>
+                    <canvas id="recipePreviewCanvas"></canvas>
+                    <div class="recipe-preview-caption" id="recipeTag">日常陪伴</div>
+                </div>
+            </div>
+
+            <!-- 胶片配方选择 -->
+            <section class="picker-section">
+                <div class="picker-section-header">
+                    <span class="picker-section-title">🎞 胶片配方</span>
+                    <span class="picker-section-hint">决定照片颜色与质感</span>
+                </div>
+                <div class="recipe-list" id="recipeList"></div>
+            </section>
+
+            <!-- 相纸样式选择 -->
+            <section class="picker-section">
+                <div class="picker-section-header">
+                    <span class="picker-section-title">🖼 相纸样式</span>
+                    <span class="picker-section-hint">决定拍立得边框的样子</span>
+                </div>
+                <div class="paper-list" id="paperList"></div>
+            </section>
+
+            <!-- 照片日期（仅作数据，展示于"回忆确认页"，不再绘入图片） -->
+            <section class="picker-section" id="datePickerSection">
+                <div class="picker-section-header">
+                    <span class="picker-section-title">📅 记录日期</span>
+                    <span class="picker-section-hint">为这一刻选一个日期</span>
+                </div>
+                <div class="date-mode-row">
+                    <button type="button" class="date-mode-btn active" data-mode="today" onclick="App.setPhotoDateMode('today')">今天</button>
+                    <button type="button" class="date-mode-btn" data-mode="custom" onclick="App.setPhotoDateMode('custom')">自定义</button>
+                    <button type="button" class="date-mode-btn" data-mode="none" onclick="App.setPhotoDateMode('none')">不添加</button>
+                </div>
+                <input type="date" id="dateCustomInput" class="date-custom-input" onchange="App.setCustomDate(this.value)"/>
+            </section>
+
+            <button class="btn-next-cta" onclick="App.startDeveloping()">
+                <span>开始显影</span>
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none">
+                    <path d="M9 18l6-6-6-6" stroke="#FFF6E6" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                </svg>
+            </button>
+        </div>
+    </div>
+
+    <!-- ==================== DEVELOPING VIEW ==================== -->
+    <div id="view-develop" class="view">
+        <div class="develop-content">
+            <div class="develop-stage">
+                <!-- 相机卡槽：空白相纸从这里带弹性滑出 -->
+                <div class="polaroid-eject" id="polaroidEject">
+                    <div class="polaroid-card developing-card" id="developingCard">
+                        <img class="develop-frame-bg" id="developFrameBg" src="public-assets/frames/classic_white.webp" alt="" aria-hidden="true" draggable="false" loading="lazy"/>
+                        <!-- 照片：显影动画只修改其 透明度 / 模糊 / 对比，不改颜色 -->
+                        <canvas id="developCanvas"></canvas>
+                        <!-- 未曝光相纸纹理：显影前覆盖照片区，模拟刚从相机出来的空白相纸 -->
+                        <div class="develop-blank" id="developBlank"></div>
+                        <!-- 显影完成时的轻微闪光 -->
+                        <div class="develop-flash" id="developFlash"></div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="develop-info">
+                <div class="develop-label" id="developLabel">照片正在慢慢出现…</div>
+                <p class="develop-hint" id="developHint">相纸正在悄悄感光</p>
+                <p class="develop-tip" id="developTip"></p>
+            </div>
+        </div>
+    </div>
+
+    <!-- ==================== MEMORY CONFIRMATION VIEW ==================== -->
+    <div id="view-memory" class="view">
+        <div class="page-header">
+            <button class="btn-back" onclick="App.startDeveloping()">
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none">
+                    <path d="M15 18l-6-6 6-6" stroke="#6D4A33" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                </svg>
+            </button>
+            <span class="page-title">这一刻的回忆</span>
+            <span></span>
+        </div>
+
+        <div class="memory-content">
+            <!-- 一张刚洗出来的拍立得：照片 + 相纸边框 + 内部白色留白区文字（宠物名/日期/回忆） -->
+            <div class="memory-polaroid-wrap" id="memoryPolaroidWrap">
+                <canvas id="memoryCanvas"></canvas>
+                <canvas id="memoryTextCanvas" class="memory-text-overlay"></canvas>
+            </div>
+
+            <div class="memory-actions">
+                <button class="btn-primary" onclick="App.goResult()">🖊 写句话</button>
+                <button class="btn-secondary" onclick="App.saveImage()">💛 保存到相册</button>
+                <button class="btn-link-secondary" onclick="App.goUpload()">再拍一张</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- ==================== RESULT VIEW（编辑回忆页面） ==================== -->
+    <div id="view-result" class="view">
+        <div class="page-header">
+            <button class="btn-back" onclick="App._goBack()" aria-label="返回上一编辑步骤">
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none">
+                    <path d="M15 18l-6-6 6-6" stroke="#6D4A33" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                </svg>
+            </button>
+            <span class="page-title">编辑这一刻</span>
+        </div>
+
+        <div class="result-content">
+            <p class="result-hint">
+                <span class="hint-emoji">✏️</span>
+                留给它一句话、一个名字、一个日子吧
+            </p>
+
+            <!-- 编辑区：宠物名字 + 日期（轻量输入，不破坏拍照流程） -->
+            <div class="result-meta">
+                <label class="result-meta-field">
+                    <span class="result-meta-label">🐾 宠物名字</span>
+                    <input type="text" id="resultPetName" class="result-meta-input" placeholder="它的名字" maxlength="20" oninput="App.setPetName(this.value)"/>
+                </label>
+                <label class="result-meta-field">
+                    <span class="result-meta-label">📅 日期</span>
+                    <input type="date" id="resultDate" class="result-meta-input" onchange="App.setPhotoDate(this.value)"/>
+                </label>
+            </div>
+
+            <!-- 拍立得标题：可编辑，替换原固定“日常陪伴” -->
+            <div class="result-title-row">
+                <span class="result-meta-label">🏷 标题</span>
+                <input type="text" id="resultTitle" class="result-meta-input" placeholder="日常陪伴" maxlength="30" oninput="App.setTitle(this.value)"/>
+            </div>
+
+            <div class="result-polaroid-wrap" id="resultPolaroidWrap">
+                <img class="result-frame-bg" id="resultFrameBg" src="public-assets/frames/classic_white.webp" alt="" aria-hidden="true" draggable="false" loading="lazy"/>
+                <canvas id="resultCanvas"></canvas>
+                <canvas id="handwriteCanvas" class="handwrite-overlay"></canvas>
+                <div class="handwrite-hotspot" onclick="App.openHandwrite()" title="点击写留言"></div>
+            </div>
+
+            <!-- 轻量故事区：拍立得左右空白区域的故事感（今日小记 + 特别事件） -->
+            <div class="result-story">
+                <div class="story-col">
+                    <span class="story-label">📝 今日小记</span>
+                    <textarea id="resultNote" class="result-note-input" placeholder="今天第一次主动靠近我" maxlength="120" oninput="App.setNote(this.value)"></textarea>
+                </div>
+                <div class="story-col">
+                    <span class="story-label">✨ 特别事件</span>
+                    <div class="tag-chips" id="resultTags">
+                        <button type="button" class="tag-chip" data-tag="第一次尝试" onclick="App.toggleTag('第一次尝试')">第一次尝试</button>
+                        <button type="button" class="tag-chip" data-tag="开心瞬间" onclick="App.toggleTag('开心瞬间')">开心瞬间</button>
+                        <button type="button" class="tag-chip" data-tag="搞怪行为" onclick="App.toggleTag('搞怪行为')">搞怪行为</button>
+                        <button type="button" class="tag-chip" data-tag="出门玩耍" onclick="App.toggleTag('出门玩耍')">出门玩耍</button>
+                        <button type="button" class="tag-chip" data-tag="特别纪念日" onclick="App.toggleTag('特别纪念日')">特别纪念日</button>
+                    </div>
+                </div>
+            </div>
+
+            <button class="btn-write-cue" onclick="App.openHandwrite()">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none">
+                    <path d="M12 20h9M16.5 3.5a2.12 2.12 0 0 1 3 3L7 19l-4 1 1-4 12.5-12.5z" stroke="#FFA45C" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/>
+                </svg>
+                手写留言 / 改一改
+            </button>
+
+            <button class="btn-adjust-cue" onclick="App.goAdjust()">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none">
+                    <path d="M21 2v6h-6M3 22v-6h6M21 8a9 9 0 0 0-15-3M3 16a9 9 0 0 0 15 3" stroke="#6D4A33" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/>
+                </svg>
+                调整签名位置
+            </button>
+
+            <div class="result-actions result-actions-trio">
+                <button class="btn-save-img" onclick="App.saveImage()">
+                    <span class="ra-ico">💛</span>
+                    <span class="ra-label">保存到相册</span>
+                </button>
+                <button class="btn-to-wall" onclick="App.sendToWall()">
+                    <span class="ra-ico">🧸</span>
+                    <span class="ra-label">展示墙</span>
+                </button>
+                <button class="btn-to-tm" onclick="App.sendToTimemachine()">
+                    <span class="ra-ico">⏳</span>
+                    <span class="ra-label">时光机</span>
+                </button>
+            </div>
+            <button class="btn-link-secondary result-retake" onclick="App.goUpload()">再拍一张</button>
+        </div>
+    </div>
+
+    <!-- ==================== WALL VIEW (拍立得展示墙) ==================== -->
+    <div id="view-wall" class="view wall-view">
+        <div class="wall-header">
+            <button class="btn-back" onclick="App._goBack()" aria-label="返回上一页">
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none">
+                    <path d="M15 18l-6-6 6-6" stroke="#6D4A33" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                </svg>
+            </button>
+            <span class="page-title">我的回忆墙</span>
+            <span class="wall-header-tip">🐾 拖动布置</span>
+            <button class="wall-export-btn" onclick="Exporter.exportWall()">🧸 保存展示墙</button>
+        </div>
+
+        <!-- Layer 1 背景 / Layer 2-4 元素 都在 wallStage 内 -->
+        <div class="wall-stage" id="wallStage">
+            <div class="wall-bg"></div>
+            <!-- .wall-item 由 js/wall.js 动态生成 -->
+        </div>
+
+        <!-- 贴纸库面板（与“工具箱”分离，保持分类清晰） -->
+        <div class="wall-panel" id="wallStickerPanel">
+            <div class="wall-panel-head">
+                <span>🐾 贴纸库</span>
+            </div>
+            <div class="wall-panel-list"></div>
+        </div>
+
+        <!-- 工具箱面板：图钉（含颜色）+ 小纸条，二者不混在贴纸里 -->
+        <div class="wall-panel wall-tool-panel" id="wallToolPanel">
+            <div class="wall-panel-head">
+                <span>🧰 工具箱</span>
+            </div>
+
+            <div class="wall-panel-section">
+                <div class="wall-panel-section-title">📌 图钉</div>
+                <div class="wall-panel-list wall-pin-list"></div>
+            </div>
+
+            <div class="wall-panel-section">
+                <div class="wall-panel-section-title">📝 小纸条</div>
+                <div class="wall-panel-list wall-note-list"></div>
+            </div>
+        </div>
+
+        <!-- Layer 5 浮动工具（默认隐藏，点击 🐾 展开） -->
+        <button class="wall-fab" id="wallFab" aria-label="展开工具">
+            <span class="wall-fab-ico">🐾</span>
+        </button>
+        <div class="wall-fab-menu" id="wallFabMenu">
+            <button class="wall-tool" id="wallBtnStickers">
+                <span class="wall-tool-ico">🐾</span>
+                <span class="wall-tool-label">贴纸</span>
+            </button>
+            <button class="wall-tool" id="wallBtnTools">
+                <span class="wall-tool-ico">🧰</span>
+                <span class="wall-tool-label">工具箱</span>
+            </button>
+        </div>
+    </div>
+
+    <!-- ==================== TIMEMACHINE VIEW（时光机 · 宠物成长手帐） ==================== -->
+    <div id="view-timemachine" class="view tm-view">
+        <!-- 手帐纸张背景（作用域仅本视图，不影响其他页面） -->
+        <div class="tm-bg" aria-hidden="true"></div>
+
+        <header class="tm-header">
+            <button class="btn-back tm-back" onclick="App._goBack()" aria-label="返回上一页">
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none">
+                    <path d="M15 18l-6-6 6-6" stroke="#6D4A33" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                </svg>
+            </button>
+            <!-- 时光机标题视觉：用设计图（透明 WebP）替代原文字标题，路径见 js/assets.js -->
+            <img class="tm-title-img" id="tmTitleImg" alt="时光机 · 和 TA 一起生活的每一天" draggable="false" />
+        </header>
+
+        <div class="tm-scroll">
+            <div class="tm-timeline" id="tmTimeline"><!-- 回忆卡片由 js/timemachine.js 注入 --></div>
+        </div>
+
+        <!-- 保存按钮：拍立得下方空白区、底部导航上方，不遮挡内容 -->
+        <footer class="tm-footer" id="tmFooter">
+            <button class="tm-export-btn" onclick="Exporter.exportTimeMachine()" aria-label="保存这一页时光机">📖 保存这一页时光机</button>
+        </footer>
+
+        <!-- 空状态：未生成任何拍立得时温暖引导 -->
+        <div class="tm-empty" id="tmEmpty" hidden>
+            <div class="tm-empty-art">🐾</div>
+            <p class="tm-empty-title">这里还没有回忆</p>
+            <p class="tm-empty-sub">给你的毛孩子拍第一张拍立得吧！</p>
+            <button class="tm-empty-btn" onclick="App.goUpload()">咔嚓一下</button>
+        </div>
+
+        <!-- 回忆详情浮层 -->
+        <div class="tm-detail" id="tmDetail" hidden>
+            <div class="tm-detail-mask" onclick="TimeMachine.closeDetail()"></div>
+            <div class="tm-detail-card">
+                <button class="tm-detail-close" onclick="TimeMachine.closeDetail()">×</button>
+                <div class="tm-detail-photo">
+                    <img id="tmDetailImg" alt="拍立得回忆" />
+                </div>
+                <p class="tm-detail-date" id="tmDetailDate"></p>
+                <p class="tm-detail-text" id="tmDetailText"></p>
+                <div class="tm-detail-note" id="tmDetailNote"></div>
+                <div class="tm-detail-tags" id="tmDetailTags"></div>
+                <button class="tm-detail-add" id="tmDetailAdd">贴到我的展示墙 🧸</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- ==================== HANDWRITE VIEW (全屏手写) ==================== -->
+    <div id="view-handwrite" class="view handwrite-view">
+        <div class="handwrite-header">
+            <button class="handwrite-close" onclick="App.closeHandwrite(false)" aria-label="返回">
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none">
+                    <path d="M18 6 6 18M6 6l12 12" stroke="#6D4A33" stroke-width="2" stroke-linecap="round"/>
+                </svg>
+            </button>
+            <span class="handwrite-title">在白边上写句话</span>
+            <button class="handwrite-done" onclick="App.closeHandwrite(true)">完成</button>
+        </div>
+
+        <p class="handwrite-sub" id="handwriteSub">把想对它说的话，留在这一刻 🐾</p>
+
+        <div class="handwrite-stage">
+            <div class="handwrite-paper">
+                <canvas id="handwriteBigCanvas"></canvas>
+                <div class="handwrite-placeholder" id="handwritePlaceholder">在这里写下你的话～</div>
+            </div>
+        </div>
+
+        <div class="handwrite-toolbar">
+            <div class="hw-row">
+                <div class="hw-colors">
+                    <button class="color-dot hw-color active" data-color="#6D4A33" style="background-color:#6D4A33" onclick="Handwriting.setColor('#6D4A33')" aria-label="深棕"></button>
+                    <button class="color-dot hw-color" data-color="#FFA45C" style="background-color:#FFA45C" onclick="Handwriting.setColor('#FFA45C')" aria-label="暖橙"></button>
+                    <button class="color-dot hw-color" data-color="#333333" style="background-color:#333333" onclick="Handwriting.setColor('#333333')" aria-label="黑色"></button>
+                    <button class="color-dot hw-color" data-color="#FFF6E6" style="background-color:#FFF6E6" onclick="Handwriting.setColor('#FFF6E6')" aria-label="奶油白"></button>
+                </div>
+                <div class="hw-actions">
+                    <button class="hw-btn" onclick="Handwriting.undo()">
+                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none">
+                            <path d="M3 7v6h6M3 13a9 9 0 1 0 3-7L3 9" stroke="#6D4A33" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/>
+                        </svg>
+                        撤销
+                    </button>
+                    <button class="hw-btn" onclick="Handwriting.clear()">
+                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none">
+                            <path d="M3 6h18M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2m3 0v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6" stroke="#6D4A33" stroke-width="1.8" stroke-linecap="round"/>
+                        </svg>
+                        清空
+                    </button>
+                </div>
+            </div>
+
+            <div class="hw-size">
+                <span class="hw-size-label">笔触粗细</span>
+                <input type="range" class="hw-size-slider" min="12" max="60" value="28" step="1" oninput="Handwriting.setSize(this.value); document.getElementById('hwSizeVal').textContent = this.value<25?'细':(this.value<42?'中':'粗');">
+                <span class="hw-size-val" id="hwSizeVal">中</span>
+            </div>
+        </div>
+    </div>
+
+    <!-- ==================== ADJUST VIEW（手写留言调整） ==================== -->
+    <div id="view-adjust" class="view adjust-view">
+        <div class="page-header">
+            <button class="btn-back" onclick="App._goBack()" aria-label="返回编辑页">
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none">
+                    <path d="M15 18l-6-6 6-6" stroke="#6D4A33" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                </svg>
+            </button>
+            <span class="page-title">调整留言</span>
+            <span></span>
+        </div>
+
+        <div class="adjust-content">
+            <p class="adjust-hint">
+                <span class="hint-emoji">🐾</span>
+                调整一下它的位置，让这句话停在最合适的地方吧
+            </p>
+
+            <div class="adjust-stage">
+                <div class="adjust-polaroid" id="adjustPolaroid">
+                    <canvas id="adjustPhotoCanvas" class="adjust-photo-canvas"></canvas>
+                    <div class="adjust-hw-layer" id="adjustHwLayer">
+                        <canvas id="adjustHwCanvas"></canvas>
+                        <div class="adjust-hw-bounds"></div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="adjust-tools">
+                <div class="adjust-tool-row">
+                    <span>大小</span>
+                    <input type="range" id="adjustScale" min="0.5" max="2" step="0.01" value="1">
+                </div>
+                <div class="adjust-tool-row">
+                    <span>旋转</span>
+                    <input type="range" id="adjustRotate" min="-5" max="5" step="0.5" value="0">
+                </div>
+                <button class="adjust-reset" onclick="App.resetHwTransform()">回到最初位置</button>
+            </div>
+
+            <div class="adjust-actions">
+                <button class="btn-secondary" onclick="App.openHandwrite()">
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none">
+                        <path d="M12 20h9M16.5 3.5a2.12 2.12 0 0 1 3 3L7 19l-4 1 1-4 12.5-12.5z" stroke="#6D4A33" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/>
+                    </svg>
+                    改字
+                </button>
+                <button class="btn-primary" onclick="App.applyHwTransform()">
+                    就用这个位置
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- ==================== TOAST ==================== -->
+    <div class="toast" id="toast"></div>
+
+    <script src="js/assetConfig.js"></script>
+    <script src="js/filmRecipes.js"></script>
+    <script src="js/cropper.js"></script>
+    <script src="js/handwriting.js"></script>
+    <!-- 相纸配置：file:// 下 fetch 本地 JSON 会被 CORS 拦截，故用 <script> 注入 window.PAW_FRAMES 兜底 -->
+    <script src="./frames/frames.js"></script>
+    <!-- 导出专用资源：背景 + 贴纸路径，经 js/assetConfig.js 解析（http 同源，不污染 canvas） -->
+    <script src="js/assets-export.js"></script>
+    <script src="js/paperStyles.js"></script>
+    <script src="js/polaroid.js"></script>
+    <script src="js/developing.js"></script>
+    <script src="js/memory-store.js"></script>
+    <script src="js/app.js"></script>
+    <!-- 展示墙：贴纸 / 图钉清单（file:// 友好，用 window.PAW_* 注入）与独立模块 -->
+    <script src="./stickers/stickers.js"></script>
+    <script src="./pins/pins.js"></script>
+    <script src="js/wall.js"></script>
+    <!-- 视觉资产统一配置（标题图片路径集中管理，先于时光机加载） -->
+    <script src="js/assets.js"></script>
+    <!-- 时光机：浏览回忆（独立模块，不修改拍照流程） -->
+    <script src="js/timemachine.js"></script>
+    <!-- 导出功能：展示墙整图 / 时光机成长长图（读取统一 Memory 数据） -->
+    <script src="js/exporter.js"></script>
+    <!-- 移动端“保存到相册”通用方案（Web Share + 长按兜底，file:// 友好） -->
+    <script src="js/share-save.js"></script>
+
+    <!-- ==================== 底部导航（首页 / 时光机 / 展示墙） ==================== -->
+    <nav class="tab-bar" id="tabBar">
+        <button class="tab-item" data-view="home" onclick="App.goHome()">
+            <div class="tab-icon">🐾</div>
+            <span class="tab-label">首页</span>
+        </button>
+        <button class="tab-item" data-view="timemachine" onclick="App.goTimemachine()">
+            <div class="tab-icon">⏳</div>
+            <span class="tab-label">时光机</span>
+        </button>
+        <button class="tab-item" data-view="wall" onclick="App.goWall()">
+            <div class="tab-icon">🧸</div>
+            <span class="tab-label">展示墙</span>
+        </button>
+    </nav>
+
+    <!-- ==================== 设置 / 数据备份恢复 ==================== -->
+    <div class="modal-mask" id="settingsModal">
+        <div class="settings-card">
+            <div class="settings-head">
+                <h3 class="settings-title">设置</h3>
+                <button class="settings-close" onclick="App.closeSettings()" aria-label="关闭">
+                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none"><path d="M6 6l12 12M18 6L6 18" stroke="#6D4A33" stroke-width="2" stroke-linecap="round"/></svg>
+                </button>
+            </div>
+            <p class="settings-tip">
+                浏览器把 <b>http://</b> 与 <b>file://</b> 当成两个独立仓库，数据互不相通。
+                如果你换一种方式打开（例如双击文件）看不到旧数据，先用这里<b>导出备份</b>，
+                再到那个打开方式里<b>导入备份</b>即可。
+            </p>
+            <div class="settings-actions">
+                <button class="settings-btn-action export" onclick="App.exportBackup()">
+                    <span class="sb-ico">💾</span> 导出备份
+                </button>
+                <button class="settings-btn-action import" onclick="App._triggerImport()">
+                    <span class="sb-ico">📥</span> 导入备份
+                </button>
+                <input type="file" id="backupFileInput" accept="application/json,.json" hidden
+                       onchange="App.importBackup(this.files[0])"/>
+            </div>
+            <button class="settings-btn-action reset" onclick="App.resetLocalData()">
+                <span class="sb-ico">🧹</span> 清空本地数据并重启
+            </button>
+            <p class="settings-count" id="settingsCount"></p>
+            <button class="settings-btn-action copyver" onclick="App.copyVersion()">
+                <span class="sb-ico">📋</span> 复制当前版本号
+            </button>
+
+            <!-- 用户反馈入口：跳转腾讯问卷 -->
+            <div class="feedback-card">
+                <div class="feedback-emoji">💌</div>
+                <h4 class="feedback-title">给 Pawlaroid 留一封信</h4>
+                <p class="feedback-sub">如果你有建议，<br/>或者想告诉我们 Pawlaroid 哪里可以变得更好，<br/>欢迎留下你的想法。</p>
+                <button class="feedback-btn" onclick="App.openFeedback()">去留言</button>
+            </div>
+        </div>
+    </div>
+
+</body>
+</html>
