@@ -22,8 +22,8 @@ const PaperStyles = {
     /* 边框所在目录（站点根目录下的相对路径） */
     FRAME_DIR: 'frames/',
 
-    /* frames.json 地址：按 USE_R2 选择 full / demo 清单（避免公开仓库 404） */
-    JSON_URL: (typeof window !== 'undefined' && window.ASSET_CONFIG && window.ASSET_CONFIG.frameManifest) || 'frames/frames.demo.json',
+    /* frames.json 地址：仓库内同源清单（始终全量，打开即玩） */
+    JSON_URL: 'frames/frames.json',
 
     /* 动态加载后的相纸列表 */
     frames: [],
@@ -99,7 +99,7 @@ const PaperStyles = {
         const imageFile = (f && (f.image || f.file)) || '';
         const thumbFile = (f && f.thumbnail) || imageFile;
 
-        // 路径相对化（frames/xxx.webp），由 assetConfig.resolve() 拼前缀（public-assets/ 或 R2）
+        // 路径相对化（frames/xxx.webp），由 assetConfig.resolve() 拼前缀（assets/）
         const ac = (typeof window !== 'undefined' && window.ASSET_CONFIG) ? window.ASSET_CONFIG : null;
         const file = ac ? ac.resolve(imageFile) : (imageFile.includes('/') ? imageFile : this.FRAME_DIR + imageFile);
         const thumbnail = ac ? ac.resolve(thumbFile) : (thumbFile.includes('/') ? thumbFile : this.FRAME_DIR + thumbFile);

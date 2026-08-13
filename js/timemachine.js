@@ -39,7 +39,7 @@ const TimeMachine = {
         const titleImg = document.getElementById('tmTitleImg');
         if (titleImg) {
             titleImg.src = (window.PAW_ASSETS && window.PAW_ASSETS.timeMachineTitle)
-                || 'public-assets/titles/time-machine-title.webp';
+                || 'assets/titles/time-machine-title.webp';
         }
         this.render();
     },

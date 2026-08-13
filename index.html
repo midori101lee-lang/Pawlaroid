@@ -64,7 +64,7 @@
 
             <!-- 拍立得主视觉（PNG 资产） -->
             <div class="home-hero">
-                <img class="home-hero-img" src="public-assets/home/hero.webp" alt="Pawlaroid 宠物拍立得相机" draggable="false"/>
+                <img class="home-hero-img" src="assets/home/hero.webp" alt="Pawlaroid 宠物拍立得相机" draggable="false"/>
                 <div class="home-hero-shadow"></div>
                 <!-- 装饰小元素 -->
                 <span class="home-deco home-deco-1">咔嚓～</span>
@@ -75,7 +75,7 @@
 
             <!-- 咔嚓一下 骨头 CTA（PNG 资产，文字已 baked in，唯一拍照入口） -->
             <button class="btn-bone-cta" onclick="App.goUpload()" aria-label="咔嚓一下，开始拍照">
-                <img class="btn-bone-cta-img" src="public-assets/home/bone-cta.webp" alt="咔嚓一下" draggable="false"/>
+                <img class="btn-bone-cta-img" src="assets/home/bone-cta.webp" alt="咔嚓一下" draggable="false"/>
             </button>
         </div>
 
@@ -264,7 +264,7 @@
             <!-- 预览：相纸 PNG + 照片 -->
             <div class="recipe-preview-wrap">
                 <div class="recipe-polaroid" id="recipePolaroid">
-                    <img class="recipe-frame-bg" id="recipeFrameBg" src="public-assets/frames/classic_white.webp" alt="" aria-hidden="true" draggable="false" loading="lazy"/>
+                    <img class="recipe-frame-bg" id="recipeFrameBg" src="assets/frames/classic_white.webp" alt="" aria-hidden="true" draggable="false" loading="lazy"/>
                     <canvas id="recipePreviewCanvas"></canvas>
                     <div class="recipe-preview-caption" id="recipeTag">日常陪伴</div>
                 </div>
@@ -318,7 +318,7 @@
                 <!-- 相机卡槽：空白相纸从这里带弹性滑出 -->
                 <div class="polaroid-eject" id="polaroidEject">
                     <div class="polaroid-card developing-card" id="developingCard">
-                        <img class="develop-frame-bg" id="developFrameBg" src="public-assets/frames/classic_white.webp" alt="" aria-hidden="true" draggable="false" loading="lazy"/>
+                        <img class="develop-frame-bg" id="developFrameBg" src="assets/frames/classic_white.webp" alt="" aria-hidden="true" draggable="false" loading="lazy"/>
                         <!-- 照片：显影动画只修改其 透明度 / 模糊 / 对比，不改颜色 -->
                         <canvas id="developCanvas"></canvas>
                         <!-- 未曝光相纸纹理：显影前覆盖照片区，模拟刚从相机出来的空白相纸 -->
@@ -400,7 +400,7 @@
             </div>
 
             <div class="result-polaroid-wrap" id="resultPolaroidWrap">
-                <img class="result-frame-bg" id="resultFrameBg" src="public-assets/frames/classic_white.webp" alt="" aria-hidden="true" draggable="false" loading="lazy"/>
+                <img class="result-frame-bg" id="resultFrameBg" src="assets/frames/classic_white.webp" alt="" aria-hidden="true" draggable="false" loading="lazy"/>
                 <canvas id="resultCanvas"></canvas>
                 <canvas id="handwriteCanvas" class="handwrite-overlay"></canvas>
                 <div class="handwrite-hotspot" onclick="App.openHandwrite()" title="点击写留言"></div>

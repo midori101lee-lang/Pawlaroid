@@ -1,5 +1,0 @@
-[
-  { "name": "经典白边", "thumbnail": "frames/classic_white.webp", "image": "frames/classic_white.webp" },
-  { "name": "森林绿色", "thumbnail": "frames/forest_green.webp",  "image": "frames/forest_green.webp" },
-  { "name": "海洋蓝色", "thumbnail": "frames/ocean_blue.webp",    "image": "frames/ocean_blue.webp" }
-]

@@ -136,8 +136,7 @@ const Exporter = {
         return new Promise((resolve, reject) => {
             if (!src) return reject(new Error('empty src'));
             const img = new Image();
-            // R2 跨域资源需 crossOrigin，否则导出 toDataURL 抛 SecurityError
-            if (window.ASSET_CONFIG && window.ASSET_CONFIG.USE_R2) img.crossOrigin = 'anonymous';
+            // 同源 assets，无需 crossOrigin
             img.onload = () => resolve(img);
             img.onerror = () => reject(new Error('load fail'));
             img.src = src;

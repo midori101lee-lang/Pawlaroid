@@ -43,8 +43,7 @@ const Polaroid = {
         }
         return new Promise((resolve, reject) => {
             const img = new Image();
-            // R2 跨域资源需 crossOrigin，否则导出 toDataURL 抛 SecurityError
-            if (window.ASSET_CONFIG && window.ASSET_CONFIG.USE_R2) img.crossOrigin = 'anonymous';
+            // 同源 assets，无需 crossOrigin
             img.onload = () => {
                 this._frameCache[filePath] = img;
                 resolve(img);

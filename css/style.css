@@ -2270,7 +2270,7 @@ body {
 .wall-bg {
     position: absolute;
     inset: 0;
-    background-image: url('../public-assets/backgrounds/wall-bg.webp');
+    background-image: url('../assets/backgrounds/wall-bg.webp');
     background-size: cover;       /* 铺满展示区 */
     background-position: center;
     background-repeat: no-repeat;

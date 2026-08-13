@@ -888,12 +888,11 @@ const App = {
     /** 构建纯净拍立得底图（photo + 胶片质感 + 相纸 PNG，不含日期/手写），缓存复用 */
     async buildPurePolaroid() {
         const paper = PaperStyles.findById(this.state.selectedPaper) || PaperStyles.getAll()[0];
-        // 本地完整副本（file://）下可走 dataUri（内联 base64）避免污染画布；
-        // 仓库公开版（http）无 dataUri，直接走 paper.file（public-assets 路径）。
+        // 仓库公开版：相纸走 paper.file（assets/ 同源路径），导出同源不污染画布。
         const __AC = window.ASSET_CONFIG;
         const __defaultFrame = (__AC && typeof __AC.resolve === 'function')
             ? __AC.resolve('frames/classic_white.webp')
-            : 'public-assets/frames/classic_white.webp';
+            : 'assets/frames/classic_white.webp';
         const paperSrc = (paper && paper.dataUri) ? paper.dataUri : (paper ? paper.file : __defaultFrame);
         return Polaroid.render(this.state.processedCanvas, {
             paperFile: paperSrc

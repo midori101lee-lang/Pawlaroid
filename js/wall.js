@@ -44,11 +44,7 @@ const Wall = {
     init() {
         this.stage = document.getElementById('wallStage');
         this.stickerPanel = document.getElementById('wallStickerPanel');
-        // 完整展示墙背景：R2 模式下用完整原图覆盖降采样兜底（DEMO 仍用 CSS 默认）
-        if (window.ASSET_CONFIG && window.ASSET_CONFIG.USE_R2) {
-            const bgEl = this.stage ? this.stage.querySelector('.wall-bg') : null;
-            if (bgEl) bgEl.style.backgroundImage = 'url(' + window.ASSET_CONFIG.resolve('backgrounds/wall-bg.webp') + ')';
-        }
+        // 展示墙背景由 CSS (.wall-bg) 加载仓库内 assets/backgrounds/wall-bg.webp（同源，无需 JS 注入）
         this.toolPanel = document.getElementById('wallToolPanel');
         if (!this.stage) return;
 
@@ -237,7 +233,7 @@ const Wall = {
         if (typeof location !== 'undefined' &&
             (location.protocol === 'http:' || location.protocol === 'https:')) {
             try {
-                const url = (window.ASSET_CONFIG && window.ASSET_CONFIG.stickerManifest) || 'stickers/stickers.demo.json';
+                const url = 'stickers/stickers.json';
                 const res = await fetch(url, { cache: 'no-store' });
                 if (res.ok) {
                     const json = await res.json();
@@ -272,7 +268,7 @@ const Wall = {
 
     _addDecor(type, cfg) {
         this._load();
-        // 优先内联 dataURI（导出友好）；否则走 assetConfig.resolve 拼前缀（public-assets/ 或 R2）
+        // 贴纸图片走 assetConfig.resolve 拼前缀（assets/），同源加载导出不污染画布
         let src = cfg.dataUri || (cfg.image || cfg.file);
         if (!cfg.dataUri && window.ASSET_CONFIG && window.ASSET_CONFIG.resolve) {
             src = window.ASSET_CONFIG.resolve(cfg.image || cfg.file);
