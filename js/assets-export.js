@@ -29,9 +29,9 @@ window.PAW_STICKER_DATAURI = {
   // 海洋小鱼
   'ocean_fish':       __AC_X.resolve('stickers/oceanfish.webp'),
   'oceanfish.webp':   __AC_X.resolve('stickers/oceanfish.webp'),
-  // 小蛇
-  'snake':            __AC_X.resolve('stickers/snake.webp'),
-  'snake.webp':       __AC_X.resolve('stickers/snake.webp'),
+  // 小零食
+  'snack':            __AC_X.resolve('stickers/snack.webp'),
+  'snack.webp':       __AC_X.resolve('stickers/snack.webp'),
   // 小背影
   'back_view':        __AC_X.resolve('stickers/back.webp'),
   'back.webp':        __AC_X.resolve('stickers/back.webp')
