@@ -58,7 +58,7 @@ open http://localhost:8000
 | 图像合成 | Canvas 2D（`polaroid.js` 叠加相纸、`exporter.js` 渲染长图/模板） |
 | 数据存储 | `localStorage`（`memory-store.js` 的 `PawMemory` 统一数据模型） |
 | 资源加载 | 双源配置：`<script>` 注入 `window.PAW_*` 数组（兼容 `file://`）+ 同名 `.json` 由 `fetch` 优先读取；二者必须同步 |
-| 资产路由 | `js/assetConfig.js` 暴露 `DEMO_MODE` 与 `resolve()`，统一接管所有图片路径 |
+| 资产路由 | `js/assetConfig.js` 统一接管所有图片路径：默认 DEMO 模式走仓库 `public-assets/`；开启 `USE_R2` 后走 Cloudflare R2（r2.dev），并据模式切换 full / demo 清单 |
 | 字体 | 自托管 4 款手写体（Caveat / Long Cang / Ma Shan Zheng / ZCOOL KuaiLe），SIL OFL 1.1 |
 | 移动端保存 | `js/share-save.js`（`MobileSave`）：原生分享 → 下载 → 长按浮层兜底 |
 
@@ -87,7 +87,7 @@ Pawlaroid 的叙事围绕**“冲洗仪式”**展开：快门闪光、相纸从
 - **时光机**：回望，看它一点点长大的样子。
 - **展示墙**：陈列，把好看的瞬间钉在一起。
 
-设计克制地只暴露“代表性素材子集”，完整原创资产保留在作者本地（见下方 Asset Notice），
+设计克制地只暴露“代表性素材子集”，完整原创资产经 Cloudflare R2 独立托管（见下方 Asset Architecture / Asset Notice），
 既保护创作者，也让仓库保持轻量与可运行。
 
 ---
@@ -113,12 +113,12 @@ Pawlaroid/
 │   ├── assets.js           # 视觉资产配置（标题图等）
 │   ├── assets-export.js    # 导出用资源（背景 / 贴纸路径）
 │   └── fonts/              # 自托管手写体（281 个 unicode-range 子集，OFL）
-├── frames/                 # 相纸清单（frames.js + frames.json）
-├── stickers/               # 贴纸清单（stickers.js + stickers.json）
+├── frames/                 # 相纸清单（full 元数据 frames.json[6] + demo frames.demo.json[3] + file:// 兜底 frames.js）
+├── stickers/               # 贴纸清单（full 元数据 stickers.json[6] + demo stickers.demo.json[3] + file:// 兜底 stickers.js）
 ├── pins/                   # 图钉（代码生成的 SVG）
-├── public-assets/          # 代表性素材子集（降采样 WebP，可公开）
-│   ├── frames/             #   3 款相纸
-│   ├── stickers/           #   3 款贴纸
+├── public-assets/          # 代表性素材子集（降采样 WebP，可公开；DEMO 模式与克隆预览用）
+│   ├── frames/             #   3 款相纸二进制（完整 6 款原图存于 R2）
+│   ├── stickers/           #   3 款贴纸二进制（完整 6 款原图存于 R2）
 │   ├── backgrounds/        #   展示墙背景
 │   ├── titles/             #   时光机标题图
 │   └── home/               #   首页主视觉 / 按钮
@@ -127,6 +127,26 @@ Pawlaroid/
 ├── LICENSE                 # MIT（代码）/ OFL（字体）/ 资产说明
 └── .gitignore
 ```
+
+---
+
+## 🗄 Asset Architecture（部署与资产策略）
+
+Pawlaroid 采用 **「代码公开 + 视觉资产独立管理」** 的分层架构：
+
+| 层 | 承载 | 内容 |
+| --- | --- | --- |
+| **GitHub**（本仓库） | 代码 + 配置 + 文档 | HTML / CSS / JS、素材**元数据**（文件名 / ID / 配置结构）、降采样 demo 子集 |
+| **Cloudflare Pages** | 网站部署 | 由 GitHub 自动构建并全球分发，得到 `*.pages.dev` 公开访问地址 |
+| **Cloudflare R2** | 原创视觉资产 | 完整相框 / 贴纸 / 背景 / 标题原图（二进制），经 `r2.dev` 公共访问，独立于 Git 管理 |
+
+**为何不在 GitHub 放完整素材**：原创二进制原图与仓库解耦，既保护资产、又让仓库保持轻量可运行；新增素材只需往 R2 丢文件 + 在清单加一行，无需改动代码逻辑。
+
+**运行时如何切换**（全部由 `js/assetConfig.js` 控制，资源获取层一处切换）：
+- `USE_R2 = false`（默认 / DEMO）：图片走 `public-assets/`，仅加载 **demo 清单**（相框 / 贴纸各 3 个）→ 公开仓库**零 404**。
+- `USE_R2 = true`（完整版）：图片走 R2，加载 **full 清单**（全部相框 / 贴纸）→ 线上用户可体验完整版本。
+
+合成 / 展示墙 / 导出算法**不变**，仅资源 `src` 来源切换；R2 跨域图片统一加 `crossOrigin`，导出不污染 canvas。
 
 ---
 

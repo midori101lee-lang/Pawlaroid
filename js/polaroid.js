@@ -43,6 +43,8 @@ const Polaroid = {
         }
         return new Promise((resolve, reject) => {
             const img = new Image();
+            // R2 跨域资源需 crossOrigin，否则导出 toDataURL 抛 SecurityError
+            if (window.ASSET_CONFIG && window.ASSET_CONFIG.USE_R2) img.crossOrigin = 'anonymous';
             img.onload = () => {
                 this._frameCache[filePath] = img;
                 resolve(img);
@@ -110,7 +112,7 @@ const Polaroid = {
             frameImg = await this.preloadFrame(paperFile);
         } catch (e) {
             // 加载失败时回退到默认相纸
-            frameImg = await this.preloadFrame('frames/classic_white.webp');
+            frameImg = await this.preloadFrame(window.ASSET_CONFIG ? window.ASSET_CONFIG.resolve('frames/classic_white.webp') : 'frames/classic_white.webp');
         }
 
         // 2. 创建画布（按 PNG 原生像素）

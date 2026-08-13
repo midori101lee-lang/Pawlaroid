@@ -22,8 +22,8 @@ const PaperStyles = {
     /* 边框所在目录（站点根目录下的相对路径） */
     FRAME_DIR: 'frames/',
 
-    /* frames.json 地址 */
-    JSON_URL: 'frames/frames.json',
+    /* frames.json 地址：按 USE_R2 选择 full / demo 清单（避免公开仓库 404） */
+    JSON_URL: (typeof window !== 'undefined' && window.ASSET_CONFIG && window.ASSET_CONFIG.frameManifest) || 'frames/frames.demo.json',
 
     /* 动态加载后的相纸列表 */
     frames: [],
@@ -79,10 +79,10 @@ const PaperStyles = {
             loaded = true;
         }
 
-        // 3) 兜底：仅经典白边
+        // 3) 兜底：仅经典白边（同样经 resolve 拼前缀，避免 404）
         if (!loaded || this.frames.length === 0) {
             this.loadError = !loaded;
-            this.frames = this.fallback.slice();
+            this.frames = this.fallback.map((f, i) => this.normalize(f, i));
         }
 
         this.loaded = true;
@@ -99,9 +99,10 @@ const PaperStyles = {
         const imageFile = (f && (f.image || f.file)) || '';
         const thumbFile = (f && f.thumbnail) || imageFile;
 
-        // 若已带目录分隔符则保留，否则统一补上 frames/ 前缀
-        const file = imageFile.includes('/') ? imageFile : this.FRAME_DIR + imageFile;
-        const thumbnail = thumbFile.includes('/') ? thumbFile : this.FRAME_DIR + thumbFile;
+        // 路径相对化（frames/xxx.webp），由 assetConfig.resolve() 拼前缀（public-assets/ 或 R2）
+        const ac = (typeof window !== 'undefined' && window.ASSET_CONFIG) ? window.ASSET_CONFIG : null;
+        const file = ac ? ac.resolve(imageFile) : (imageFile.includes('/') ? imageFile : this.FRAME_DIR + imageFile);
+        const thumbnail = ac ? ac.resolve(thumbFile) : (thumbFile.includes('/') ? thumbFile : this.FRAME_DIR + thumbFile);
 
         // 内联 data URI（base64）：file:// 下用 file 路径绘制会污染画布，
         // 导致导出 toDataURL() 抛 SecurityError；data: URI 不跨域，永不污染。

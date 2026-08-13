@@ -1,5 +1,8 @@
 [
-  { "name": "经典白边", "thumbnail": "public-assets/frames/classic_white.webp", "image": "public-assets/frames/classic_white.webp" },
-  { "name": "森林绿色", "thumbnail": "public-assets/frames/forest_green.webp", "image": "public-assets/frames/forest_green.webp" },
-  { "name": "海洋蓝色", "thumbnail": "public-assets/frames/ocean_blue.webp", "image": "public-assets/frames/ocean_blue.webp" }
+  { "name": "经典白边", "thumbnail": "frames/classic_white.webp", "image": "frames/classic_white.webp" },
+  { "name": "森林绿色", "thumbnail": "frames/forest_green.webp",  "image": "frames/forest_green.webp" },
+  { "name": "海洋蓝色", "thumbnail": "frames/ocean_blue.webp",    "image": "frames/ocean_blue.webp" },
+  { "name": "小卷橙色", "thumbnail": "frames/xiaojuan_orange.webp", "image": "frames/xiaojuan_orange.webp" },
+  { "name": "小卷紫色", "thumbnail": "frames/xiaojuan_purple.webp", "image": "frames/xiaojuan_purple.webp" },
+  { "name": "小卷绿色", "thumbnail": "frames/xiaojuan_green.webp",  "image": "frames/xiaojuan_green.webp" }
 ]

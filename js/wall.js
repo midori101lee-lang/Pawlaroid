@@ -44,6 +44,11 @@ const Wall = {
     init() {
         this.stage = document.getElementById('wallStage');
         this.stickerPanel = document.getElementById('wallStickerPanel');
+        // 完整展示墙背景：R2 模式下用完整原图覆盖降采样兜底（DEMO 仍用 CSS 默认）
+        if (window.ASSET_CONFIG && window.ASSET_CONFIG.USE_R2) {
+            const bgEl = this.stage ? this.stage.querySelector('.wall-bg') : null;
+            if (bgEl) bgEl.style.backgroundImage = 'url(' + window.ASSET_CONFIG.resolve('backgrounds/wall-bg.webp') + ')';
+        }
         this.toolPanel = document.getElementById('wallToolPanel');
         if (!this.stage) return;
 
@@ -232,7 +237,8 @@ const Wall = {
         if (typeof location !== 'undefined' &&
             (location.protocol === 'http:' || location.protocol === 'https:')) {
             try {
-                const res = await fetch('./stickers/stickers.json', { cache: 'no-store' });
+                const url = (window.ASSET_CONFIG && window.ASSET_CONFIG.stickerManifest) || 'stickers/stickers.demo.json';
+                const res = await fetch(url, { cache: 'no-store' });
                 if (res.ok) {
                     const json = await res.json();
                     if (Array.isArray(json) && json.length) arr = json;
@@ -251,7 +257,10 @@ const Wall = {
             (list || []).forEach(s => {
                 const el = document.createElement('button');
                 el.className = 'wall-panel-item';
-                el.innerHTML = `<img src="${s.image || s.file}" alt="${s.name}"><span>${s.name}</span>`;
+                const _ac = window.ASSET_CONFIG;
+                const _raw = s.image || s.file;
+                const _url = (_ac && _ac.resolve) ? _ac.resolve(_raw) : _raw;
+                el.innerHTML = `<img src="${_url}" alt="${s.name}"><span>${s.name}</span>`;
                 el.addEventListener('click', () => this._addDecor('sticker', s));
                 box.appendChild(el);
             });
@@ -263,7 +272,11 @@ const Wall = {
 
     _addDecor(type, cfg) {
         this._load();
-        const src = cfg.dataUri || cfg.image || cfg.file;   // 优先内联 dataURI（导出友好），回退路径
+        // 优先内联 dataURI（导出友好）；否则走 assetConfig.resolve 拼前缀（public-assets/ 或 R2）
+        let src = cfg.dataUri || (cfg.image || cfg.file);
+        if (!cfg.dataUri && window.ASSET_CONFIG && window.ASSET_CONFIG.resolve) {
+            src = window.ASSET_CONFIG.resolve(cfg.image || cfg.file);
+        }
         const item = {
             id: type[0] + '_' + Date.now() + '_' + Math.floor(Math.random() * 1e4),
             type,

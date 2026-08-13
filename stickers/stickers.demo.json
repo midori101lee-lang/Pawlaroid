@@ -1,0 +1,5 @@
+[
+  { "id": "bone_orange",  "name": "橙色骨头", "image": "stickers/orangebone.webp",  "type": "sticker", "defaultScale": 1, "defaultRotation": 0, "defaultSize": 92 },
+  { "id": "cactus",       "name": "仙人掌",   "image": "stickers/xianrenzhang.webp","type": "sticker", "defaultScale": 1, "defaultRotation": 0, "defaultSize": 96 },
+  { "id": "water",        "name": "小雨滴",   "image": "stickers/water.webp",       "type": "sticker", "defaultScale": 1, "defaultRotation": 0, "defaultSize": 84 }
+]
