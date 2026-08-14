@@ -74,6 +74,22 @@ open http://localhost:8000
 
 ---
 
+## 🧱 多回忆墙（Multiple Memory Walls）
+
+一个用户可拥有**多面独立的回忆墙**，每面墙拥有：独立名称、独立主题背景、独立拍立得布局、独立固定组件、独立照片数据。
+
+- **数据结构**：`localStorage['pawlaroid_walls'] = { walls:[{id,name,theme,themeVariant,createdAt,items:[]}], currentWallId }`。`items` 为拍立得/纸条/贴纸/图钉统一数组（即原 `pawlaroid_wall` 扁平结构）。
+- **别名兼容**：`Wall.data` 经 `Object.defineProperty` 定义为「当前墙 items」的别名，因此 `app.js` 中既有的 `Wall.data = … / .push / .filter` 写法无需逐处改写即作用于当前墙。
+- **旧数据迁移**：首次加载若无 `pawlaroid_walls`，自动把旧 `pawlaroid_wall` 整体迁入 `default` 墙（并沿用曾选主题），随后写入新结构并清理旧 key。
+- **容量机制**：每面墙 `MAX_ITEMS = 24`；超过则在墙顶部显示「这面墙已经收藏了很多回忆」+「创建新的回忆墙」横幅（不强制创建）。
+- **墙管理 API**：`createWall / switchWall / renameWall / deleteWall`（仅允许删空墙，非空墙需先清空），UI 入口为展示墙顶部 `🐾 墙名 ▾` 切换器 + `✎` 重命名 + 新建弹窗。
+- **每墙独立主题**：主题 `theme/themeVariant` 随墙持久化，`switchWall` 与 `_applyTheme(persist)` 自动切换并保存。
+- **未来扩展点**：`items` 与 `currentWallId` 已是结构化容器，便于后续做「分享某墙 / 导出整墙 / AI 起名 / 多宠物档案」。
+
+> 兼容性：备份导入(`importBackup`)、本地存储回收(`_reclaimWallStorage`)、旧图裁剪(`_cropLegacyPolaroids`)均已改为遍历所有墙；导出(`Exporter`)读取当前墙 `Wall.data` 别名，行为不变。
+
+---
+
 ## 🎨 Design Concept
 
 > 用户不是“导出一张图片”，而是把一段和毛孩子相处的时光，“冲洗”成一份可以捧在手里的纪念品。

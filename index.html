@@ -464,12 +464,40 @@
                     <path d="M15 18l-6-6 6-6" stroke="#6D4A33" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
                 </svg>
             </button>
-            <span class="page-title">我的回忆墙</span>
+            <button class="wall-switch" id="wallSwitchBtn" aria-label="切换回忆墙">
+                <span class="wall-switch-emoji">🐾</span>
+                <span class="wall-switch-name" id="wallSwitchName">我的回忆墙</span>
+                <span class="wall-switch-caret">▾</span>
+            </button>
+            <button class="wall-rename-btn" id="wallRenameBtn" aria-label="重命名当前墙" title="重命名">✎</button>
+            <div class="wall-switch-menu" id="wallSwitchMenu" hidden>
+                <div class="wall-switch-list" id="wallSwitchList"></div>
+                <button class="wall-switch-new" id="wallSwitchNew">＋ 新建回忆墙</button>
+            </div>
             <button class="wall-theme-btn" id="wallBtnTheme" aria-label="回忆墙主题">
                 <span class="wall-theme-ico">🎨</span>
                 <span class="wall-theme-label" id="wallThemeLabel">毛毡照片板</span>
             </button>
             <button class="wall-export-btn" onclick="Exporter.exportWall()">🧸 保存展示墙</button>
+        </div>
+
+        <!-- 容量提示横幅：超过推荐上限时显示（不强制新建） -->
+        <div class="wall-capacity" id="wallCapacity" hidden>
+            <span class="wall-capacity-text">🐾 这面墙已经收藏了很多回忆</span>
+            <button class="wall-capacity-new" id="wallCapacityNew">＋ 创建新的回忆墙</button>
+        </div>
+
+        <!-- 新建 / 重命名 回忆墙弹窗 -->
+        <div class="wall-modal-mask" id="wallModalMask" hidden>
+            <div class="wall-modal">
+                <div class="wall-modal-title" id="wallModalTitle">新建回忆墙</div>
+                <input class="wall-modal-input" id="wallModalInput" type="text" maxlength="20" placeholder="给这面墙起个名字" />
+                <div class="wall-modal-hint">支持中文、emoji，简短就好 🐾</div>
+                <div class="wall-modal-actions">
+                    <button class="wall-modal-cancel" id="wallModalCancel">取消</button>
+                    <button class="wall-modal-ok" id="wallModalOk">创建</button>
+                </div>
+            </div>
         </div>
 
         <!-- Layer 1 背景 / Layer 2-4 元素 都在 wallStage 内 -->

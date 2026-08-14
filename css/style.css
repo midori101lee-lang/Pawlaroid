@@ -2191,6 +2191,94 @@ body {
 }
 .wall-export-btn:active { transform: scale(.96); }
 
+/* 多墙切换器：把原来的固定标题升级为可点击的墙切换入口 */
+.wall-switch {
+    display: inline-flex; align-items: center; gap: 6px;
+    background: rgba(255,255,255,0.72);
+    border: 1px solid rgba(160,120,80,0.22);
+    border-radius: 999px;
+    padding: 6px 12px 6px 10px;
+    font-size: 15px; font-weight: 700; color: #6D4A33;
+    cursor: pointer; max-width: 52vw; white-space: nowrap;
+    box-shadow: 0 3px 10px rgba(180,130,80,0.14);
+}
+.wall-switch:active { transform: scale(.97); }
+.wall-switch-emoji { font-size: 15px; }
+.wall-switch-name { overflow: hidden; text-overflow: ellipsis; }
+.wall-switch-caret { font-size: 11px; color: #b08a5e; }
+.wall-rename-btn {
+    flex: none; width: 34px; height: 34px; border-radius: 50%;
+    border: 1px solid rgba(160,120,80,0.22);
+    background: rgba(255,255,255,0.72); color: #6D4A33;
+    font-size: 15px; cursor: pointer;
+}
+.wall-rename-btn:active { transform: scale(.94); }
+/* 墙切换下拉菜单（绝对定位于 header 内） */
+.wall-switch-menu {
+    position: absolute; top: 100%; left: 16px; z-index: 60;
+    margin-top: 8px; min-width: 220px; max-width: 80vw;
+    background: #fffdf9; border: 1px solid #efe6d8; border-radius: 16px;
+    box-shadow: 0 12px 30px rgba(120,80,40,0.20); padding: 8px;
+    display: flex; flex-direction: column; gap: 4px;
+}
+.wall-switch-menu[hidden] { display: none; }
+.wall-switch-list { display: flex; flex-direction: column; gap: 2px; max-height: 46vh; overflow: auto; }
+.wall-switch-item {
+    display: flex; align-items: center; justify-content: space-between; gap: 8px;
+    border: none; background: transparent; border-radius: 10px;
+    padding: 9px 10px; font-size: 14px; color: #4a3b2e; cursor: pointer; text-align: left;
+}
+.wall-switch-item:hover { background: #f6efe2; }
+.wall-switch-item.active { background: #fbeede; font-weight: 700; color: #6D4A33; }
+.wall-switch-item-name { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.wall-switch-item-count {
+    flex: none; font-size: 12px; color: #b08a5e; background: #f3ece0;
+    border-radius: 999px; padding: 1px 8px; min-width: 22px; text-align: center;
+}
+.wall-switch-new {
+    margin-top: 2px; border: 1px dashed #e2b483; background: #fff7ec;
+    color: #c07a2e; border-radius: 10px; padding: 9px; font-size: 13.5px; font-weight: 700; cursor: pointer;
+}
+.wall-switch-new:active { transform: scale(.98); }
+/* 容量提示横幅 */
+.wall-capacity {
+    display: flex; align-items: center; gap: 12px; flex-wrap: wrap;
+    margin: 0 16px 6px; padding: 10px 14px;
+    background: linear-gradient(135deg, #fff3e2, #ffe9d2);
+    border: 1px solid #f0cfa6; border-radius: 14px;
+    font-size: 13.5px; color: #8a5a2c;
+}
+.wall-capacity[hidden] { display: none; }
+.wall-capacity-text { font-weight: 600; }
+.wall-capacity-new {
+    margin-left: auto; border: none; background: #c07a2e; color: #fff;
+    border-radius: 999px; padding: 7px 14px; font-size: 13px; font-weight: 700; cursor: pointer;
+}
+.wall-capacity-new:active { transform: scale(.96); }
+/* 新建 / 重命名 弹窗 */
+.wall-modal-mask {
+    position: fixed; inset: 0; z-index: 9998;
+    display: flex; align-items: center; justify-content: center;
+    background: rgba(38,26,16,0.46);
+}
+.wall-modal-mask[hidden] { display: none; }
+.wall-modal {
+    width: min(86vw, 340px); background: #fffdf9; border-radius: 20px;
+    padding: 22px 20px 18px; box-shadow: 0 20px 50px rgba(60,40,20,0.30);
+}
+.wall-modal-title { font-size: 17px; font-weight: 800; color: #6D4A33; margin-bottom: 14px; }
+.wall-modal-input {
+    width: 100%; box-sizing: border-box; border: 1px solid #e6d8c4; border-radius: 12px;
+    padding: 11px 12px; font-size: 15px; color: #4a3b2e; background: #fffdf9; outline: none;
+}
+.wall-modal-input:focus { border-color: #E2A35B; }
+.wall-modal-hint { font-size: 12px; color: #b08a5e; margin: 8px 2px 16px; }
+.wall-modal-actions { display: flex; gap: 10px; }
+.wall-modal-actions button { flex: 1; border: none; border-radius: 12px; padding: 11px; font-size: 14.5px; font-weight: 700; cursor: pointer; }
+.wall-modal-cancel { background: #f3ece0; color: #6D4A33; }
+.wall-modal-ok { background: linear-gradient(135deg, #FFB968, #FF9A45); color: #fff; }
+.wall-modal-actions button:active { transform: scale(.97); }
+
 /* ============================================================
    回忆冲洗仪式（DevelopAnimation 覆盖层）
    ============================================================ */

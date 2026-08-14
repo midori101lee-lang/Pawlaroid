@@ -9,8 +9,9 @@
      Layer 5  图钉 / 装饰           .wall-item.type-pin
      Layer 6  浮动工具（index.html 内）
 
-   数据持久化：localStorage['pawlaroid_wall']
-   每个元素保存 { id, type, src?, text?, color?, x, y, rotation, scale }
+   数据持久化：localStorage['pawlaroid_walls'] = { walls:[...], currentWallId }
+   每面墙 = { id, name, theme, themeVariant, createdAt, items:[...] }
+   每个元素保存 { id, type, src?, text?, color?, x, y, rotation, scale, ... }
      x/y 用百分比（相对展示区），响应式；rotation(-5~5deg 随机)；scale 缩放系数
 
    物件系统（统一交互，不重复造轮子）：
@@ -22,10 +23,20 @@
    资源：贴纸读 window.PAW_STICKERS，图钉读 window.PAW_PINS（file:// 友好）。
    ============================================================ */
 const Wall = {
-    STORAGE_KEY: 'pawlaroid_wall',
+    /* 多墙存储：{ walls:[{id,name,theme,themeVariant,createdAt,items:[]}], currentWallId }
+       旧版本单墙数据(pawlaroid_wall)在 _load 时自动迁移进 default 墙。 */
+    STORAGE_KEY: 'pawlaroid_walls',
+    LEGACY_KEY: 'pawlaroid_wall',
+    /* 每面墙推荐的物件上限（拍立得+纸条+贴纸+图钉合计）。
+       超过即提示“这面墙已经收藏了很多回忆”，引导用户新建墙（不强制）。 */
+    MAX_ITEMS: 24,
     stage: null,
     stickerPanel: null,
     toolPanel: null,
+    walls: [],            // 多墙容器
+    currentWallId: 'default',
+    /* this.data 经 Object.defineProperty 定义为「当前墙 items 的别名」，
+       从而 app.js 中既有 Wall.data = ... / .push / .filter 写法无需逐处改写即作用于当前墙。 */
     data: [],
     selectedId: null,
     gesture: null,
@@ -63,8 +74,12 @@ const Wall = {
         if (!this._inited) {
             this._bindToolbar();
             this._bindStage();
+            this._bindWallSwitch();
             this._inited = true;
         }
+        // 多墙：先加载墙容器 + 当前墙的主题（_load 内已恢复），再渲染切换器
+        this._load();
+        this._renderWallSwitch();
         // 预加载贴纸配置（http 下 fetch stickers.json；file:// 下回退注入数组）
         this._loadStickerConfig();
         // 主题配置 + 背景应用（http 下 fetch 远程 JSON；file:// 下回退 window.PAW_WALL_THEMES）
@@ -72,6 +87,7 @@ const Wall = {
             this._applyTheme(this.themeId, this.themeVariant, false);
         });
         this._render();
+        this._updateCapacityBanner();
         // 首次进入展示墙：若有未固定照片，给出“用图钉固定回忆”的轻引导
         this._maybeShowPinTip();
     },
@@ -110,36 +126,87 @@ const Wall = {
         });
     },
 
-    /* ---------- 数据读写 ---------- */
+    /* ---------- 数据读写（多墙） ---------- */
+    /* 读取全部墙；若新结构不存在则尝试迁移旧单墙数据(pawlaroid_wall)。
+       迁移：旧 items 整体落入 default 墙，并尽量沿用用户曾选的主题/花色。 */
     _load() {
         try {
             const raw = localStorage.getItem(this.STORAGE_KEY);
-            this.data = raw ? JSON.parse(raw) : [];
-            if (!Array.isArray(this.data)) this.data = [];
+            if (raw) {
+                const obj = JSON.parse(raw);
+                this.walls = Array.isArray(obj.walls) ? obj.walls : [];
+                this.currentWallId = obj.currentWallId || (this.walls[0] && this.walls[0].id) || 'default';
+            } else {
+                // 旧版本迁移：把 pawlaroid_wall 里那一墙搬进 default 墙
+                let items = [];
+                const legacy = localStorage.getItem(this.LEGACY_KEY);
+                if (legacy) { try { items = JSON.parse(legacy); } catch (e) {} }
+                if (!Array.isArray(items)) items = [];
+                let theme = 'felt', variant = 'cream';
+                try {
+                    const s = JSON.parse(localStorage.getItem(this.THEME_KEY) || 'null');
+                    if (s && s.theme) { theme = s.theme; variant = s.variant || 'cream'; }
+                } catch (e) {}
+                const w = this._makeWall('default', '我的回忆墙', items);
+                w.theme = theme; w.themeVariant = variant;
+                this.walls = [w];
+                this.currentWallId = w.id;
+                // 迁移后立即落盘新结构并清理旧 key，避免每次加载重复迁移
+                this._save();
+                try { localStorage.removeItem(this.LEGACY_KEY); } catch (e) {}
+            }
         } catch (e) {
-            this.data = [];
+            this.walls = [this._makeWall('default', '我的回忆墙', [])];
+            this.currentWallId = 'default';
         }
-        this._normalize();
+        if (!this.walls.length) this.walls = [this._makeWall('default', '我的回忆墙', [])];
+        if (!this.walls.find(w => w.id === this.currentWallId)) this.currentWallId = this.walls[0].id;
+        // 从当前墙恢复主题（_loadThemeConfig 仅做有效性校验，不覆盖用户选择）
+        const cur = this._cur();
+        if (cur) {
+            this.themeId = cur.theme || this.themeId;
+            this.themeVariant = cur.themeVariant || this.themeVariant;
+        }
+        this._normalizeAll();
+    },
+    /* 兼容层：this.data 是「当前墙 items」的别名（见文件末尾 defineProperty）。 */
+    _cur() {
+        return this.walls.find(w => w.id === this.currentWallId) || this.walls[0] || null;
+    },
+    _makeWall(id, name, items) {
+        return {
+            id: id || this._newId(),
+            name: (name || '我的回忆墙').trim() || '我的回忆墙',
+            theme: 'felt',
+            themeVariant: 'cream',
+            createdAt: new Date().toISOString().slice(0, 10),
+            items: Array.isArray(items) ? items : []
+        };
+    },
+    _newId() {
+        return 'wall_' + Date.now() + '_' + Math.floor(Math.random() * 1e4);
     },
     /* 固定态字段兼容：旧数据只有 pinned/pinnedTo，没有 attachmentType。
        新数据用 attachmentType 区分固定方式（pin/magnet/tape…），为未来不同墙面主题（毛毡/软木/冰箱磁贴）预留扩展点。 */
-    _normalize() {
-        this.data.forEach(it => {
+    _normalizeItems(items) {
+        (items || []).forEach(it => {
             if (it.type === 'polaroid') {
                 if (it.pinned == null) it.pinned = false;
                 if (it.pinned && !it.attachmentType) it.attachmentType = 'pin';
             } else if (it.type === 'pin') {
                 if (it.pinnedTo && !it.attachmentType) it.attachmentType = 'pin';
-                // 相对锚点：图钉位置按住片 width/height 比例计算，缩放/大小不同都正确贴合（兼容旧数据）
                 if (!it.pinAnchor || typeof it.pinAnchor.x !== 'number' || typeof it.pinAnchor.y !== 'number') {
-                    it.pinAnchor = { x: 0.5, y: 0 };   // 默认：照片顶部中心
+                    it.pinAnchor = { x: 0.5, y: 0 };
                 }
             }
         });
     },
+    _normalizeAll() {
+        this.walls.forEach(w => this._normalizeItems(w.items));
+    },
     _save() {
         try {
-            localStorage.setItem(this.STORAGE_KEY, JSON.stringify(this.data));
+            localStorage.setItem(this.STORAGE_KEY, JSON.stringify({ walls: this.walls, currentWallId: this.currentWallId }));
         } catch (e) {
             console.warn('[Wall] 保存失败（可能超出 localStorage 容量）', e);
         }
@@ -262,14 +329,7 @@ const Wall = {
     async _loadThemeConfig() {
         let arr = await AssetManager.load('themes');
         this.themes = arr;
-        // 恢复上次选择的主题（持久化）
-        try {
-            const saved = JSON.parse(localStorage.getItem(this.THEME_KEY) || 'null');
-            if (saved && saved.theme && this._getTheme(saved.theme)) {
-                this.themeId = saved.theme;
-                this.themeVariant = (saved.variant && this._getVariant(this.themeId, saved.variant)) ? saved.variant : this._getTheme(this.themeId).defaultVariant;
-            }
-        } catch (e) {}
+        // 主题来源 = 当前墙（_load 已据墙恢复）。此处仅做有效性校验与兜底，不覆盖用户选择。
         if (!this._getTheme(this.themeId)) this.themeId = arr.length ? arr[0].id : 'felt';
         if (!this._getVariant(this.themeId, this.themeVariant)) {
             const t = this._getTheme(this.themeId);
@@ -368,7 +428,10 @@ const Wall = {
 
         // 若当前有固定装饰，重渲染使其 attachmentType 与主题一致（仅视觉；数据已按各自类型保存）
         if (persist) {
-            try { localStorage.setItem(this.THEME_KEY, JSON.stringify({ theme: themeId, variant: v.id })); } catch (e) {}
+            // 主题持久化进当前墙（多墙：每面墙独立主题），并整体保存
+            const cur = this._cur();
+            if (cur) { cur.theme = themeId; cur.themeVariant = v.id; }
+            this._save();
             this._toast(`已切换到「${t.name}」· ${v.name}`);
         }
     },
@@ -673,6 +736,7 @@ const Wall = {
         this._resyncBoundPins();
         // 兜底：rAF 后布局稳定（含已缓存图片）再同步一次，避免首帧坍塌尺寸把图钉锁死
         requestAnimationFrame(() => this._resyncBoundPins());
+        this._updateCapacityBanner();
     },
 
     /* 把所有“已绑定”的图钉按各自照片的当前位置/尺寸重新吸附（载入/重渲染/切主题后调用） */
@@ -1037,6 +1101,173 @@ const Wall = {
         view.appendChild(overlay);
     },
 
+    /* ---------- 多墙管理（UI 层调用） ---------- */
+    getWalls() { return (this.walls || []).map(w => ({ id: w.id, name: w.name, count: (w.items || []).length })); },
+    getCurrentWallName() { const c = this._cur(); return c ? c.name : '我的回忆墙'; },
+    getCurrentWallId() { return this.currentWallId; },
+
+    _escapeHtml(s) {
+        return String(s == null ? '' : s).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+    },
+
+    /* 绑定墙切换器 / 重命名 / 新建弹窗交互（仅在首次 init 时绑定一次） */
+    _bindWallSwitch() {
+        const btn = document.getElementById('wallSwitchBtn');
+        const menu = document.getElementById('wallSwitchMenu');
+        const renameBtn = document.getElementById('wallRenameBtn');
+        const newBtn = document.getElementById('wallSwitchNew');
+        const capNew = document.getElementById('wallCapacityNew');
+        const modalMask = document.getElementById('wallModalMask');
+        const modalOk = document.getElementById('wallModalOk');
+        const modalCancel = document.getElementById('wallModalCancel');
+        const modalInput = document.getElementById('wallModalInput');
+        const modalTitle = document.getElementById('wallModalTitle');
+
+        if (btn && menu) btn.addEventListener('click', (e) => { e.stopPropagation(); this._toggleSwitchMenu(); });
+        if (renameBtn) renameBtn.addEventListener('click', (e) => { e.stopPropagation(); this.openWallModal('rename'); });
+        if (newBtn) newBtn.addEventListener('click', () => { this._closeSwitchMenu(); this.openWallModal('new'); });
+        if (capNew) capNew.addEventListener('click', () => this.openWallModal('new'));
+        // 点击空白处关闭下拉
+        document.addEventListener('pointerdown', (e) => {
+            if (!menu || menu.hidden) return;
+            if (menu.contains(e.target) || (btn && btn.contains(e.target))) return;
+            this._closeSwitchMenu();
+        });
+
+        this._wallModalMode = 'new';
+        if (modalOk) modalOk.addEventListener('click', () => {
+            const val = (modalInput && modalInput.value || '').trim();
+            if (this._wallModalMode === 'rename') this.renameWall(this.currentWallId, val);
+            else this.createWall(val);
+            this.closeWallModal();
+        });
+        if (modalCancel) modalCancel.addEventListener('click', () => this.closeWallModal());
+        if (modalMask) modalMask.addEventListener('pointerdown', (e) => { if (e.target === modalMask) this.closeWallModal(); });
+        if (modalInput) modalInput.addEventListener('keydown', (e) => { if (e.key === 'Enter') { modalOk && modalOk.click(); } });
+    },
+
+    _toggleSwitchMenu() {
+        const menu = document.getElementById('wallSwitchMenu');
+        if (!menu) return;
+        if (menu.hidden) { this._renderWallSwitch(); menu.hidden = false; }
+        else this._closeSwitchMenu();
+    },
+    _closeSwitchMenu() {
+        const menu = document.getElementById('wallSwitchMenu');
+        if (menu) menu.hidden = true;
+    },
+
+    /* 刷新切换器：当前墙名 + 列表（名称 / 物件数 / 选中态） */
+    _renderWallSwitch() {
+        const nameEl = document.getElementById('wallSwitchName');
+        if (nameEl) nameEl.textContent = '🐾 ' + (this.getCurrentWallName() || '我的回忆墙');
+        const listEl = document.getElementById('wallSwitchList');
+        if (!listEl) return;
+        listEl.innerHTML = '';
+        this.walls.forEach(w => {
+            const item = document.createElement('button');
+            item.className = 'wall-switch-item' + (w.id === this.currentWallId ? ' active' : '');
+            item.innerHTML = `<span class="wall-switch-item-name">🐾 ${this._escapeHtml(w.name)}</span>` +
+                `<span class="wall-switch-item-count">${(w.items || []).length}</span>`;
+            item.addEventListener('click', () => { this._closeSwitchMenu(); this.switchWall(w.id); });
+            listEl.appendChild(item);
+        });
+    },
+
+    /* 新建 / 重命名 弹窗（mode: 'new' | 'rename'） */
+    openWallModal(mode) {
+        this._wallModalMode = mode || 'new';
+        const mask = document.getElementById('wallModalMask');
+        const input = document.getElementById('wallModalInput');
+        const title = document.getElementById('wallModalTitle');
+        const ok = document.getElementById('wallModalOk');
+        if (!mask) return;
+        if (title) title.textContent = (this._wallModalMode === 'rename') ? '重命名当前回忆墙' : '新建回忆墙';
+        if (input) input.value = (this._wallModalMode === 'rename') ? (this.getCurrentWallName() || '') : '我的回忆墙';
+        if (ok) ok.textContent = (this._wallModalMode === 'rename') ? '保存' : '创建';
+        mask.hidden = false;
+        if (input) { input.focus(); input.select(); }
+    },
+    closeWallModal() {
+        const mask = document.getElementById('wallModalMask');
+        if (mask) mask.hidden = true;
+    },
+
+    /* 容量横幅：超过推荐上限时提示，引导新建墙（不强制创建） */
+    _updateCapacityBanner() {
+        const el = document.getElementById('wallCapacity');
+        if (!el) return;
+        const cur = this._cur();
+        const count = cur ? (cur.items || []).length : 0;
+        el.hidden = count < this.MAX_ITEMS;
+    },
+
+    /* ---------- 墙的增 / 删 / 改 / 切 ---------- */
+    createWall(name) {
+        this._load();
+        const w = this._makeWall(this._newId(), name || '我的回忆墙', []);
+        this.walls.push(w);
+        this.currentWallId = w.id;
+        this.themeId = w.theme || 'felt';
+        this.themeVariant = w.themeVariant || (this._getTheme(this.themeId) ? this._getTheme(this.themeId).defaultVariant : 'cream');
+        this._save();
+        this._renderWallSwitch();
+        this._render();
+        this._applyTheme(this.themeId, this.themeVariant, false);
+        this._updateCapacityBanner();
+        this._toast('已新建回忆墙：' + w.name + ' 🐾');
+        return w.id;
+    },
+
+    switchWall(id) {
+        if (id === this.currentWallId) { this._closeSwitchMenu(); return; }
+        this._load();
+        const w = this.walls.find(x => x.id === id);
+        if (!w) return;
+        this.currentWallId = id;
+        this.themeId = w.theme || this.themeId;
+        this.themeVariant = w.themeVariant || this.themeVariant;
+        this._save();
+        this._applyTheme(this.themeId, this.themeVariant, false);
+        this._renderWallSwitch();
+        this._render();
+        this._updateCapacityBanner();
+    },
+
+    renameWall(id, name) {
+        this._load();
+        const w = this.walls.find(x => x.id === id);
+        if (!w) return;
+        const nm = (name || '').trim();
+        if (!nm) { this._toast('名字不能为空哦～'); return; }
+        w.name = nm;
+        this._save();
+        this._renderWallSwitch();
+    },
+
+    /* 仅允许删除空墙（避免误删回忆）；非空墙需先清空 */
+    deleteWall(id) {
+        this._load();
+        const w = this.walls.find(x => x.id === id);
+        if (!w) return;
+        if (w.items && w.items.length) {
+            this._toast('这面墙还收藏着回忆，先清空再删除吧～');
+            return;
+        }
+        this.walls = this.walls.filter(x => x.id !== id);
+        if (!this.walls.length) this.walls = [this._makeWall('default', '我的回忆墙', [])];
+        if (this.currentWallId === id) {
+            this.currentWallId = this.walls[0].id;
+            const c = this._cur();
+            if (c) { this.themeId = c.theme || 'felt'; this.themeVariant = c.themeVariant || this.themeVariant; this._applyTheme(this.themeId, this.themeVariant, false); }
+        }
+        this._save();
+        this._renderWallSwitch();
+        this._render();
+        this._updateCapacityBanner();
+        this._toast('已删除这面空墙');
+    },
+
     _rand(min, max) { return Math.random() * (max - min) + min; },
 
     _toast(msg) {
@@ -1044,3 +1275,12 @@ const Wall = {
         if (typeof App !== 'undefined' && App.toast) App.toast(msg);
     }
 };
+
+/* 让 Wall.data 成为「当前墙 items」的别名：
+   所有现有 Wall.data = ... / .push(...) / .filter(...) 写法都自动作用于当前墙，
+   从而 app.js 直接操作 Wall.data 的 7 处无需逐条改写即可兼容多墙。 */
+Object.defineProperty(Wall, 'data', {
+    configurable: true,
+    get() { const w = this._cur(); return w ? w.items : []; },
+    set(v) { const w = this._cur(); if (w) w.items = v; }
+});

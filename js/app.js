@@ -1784,12 +1784,16 @@ const App = {
             // 1. 从统一记忆库移除
             if (typeof PawMemory !== 'undefined') PawMemory.remove(id);
 
-            // 2. 从展示墙移除关联条目
+            // 2. 从展示墙移除关联条目（跨所有墙：同一回忆可能贴在多面墙上）
             if (typeof Wall !== 'undefined') {
                 Wall._load();
-                Wall.data = Wall.data.filter(it => !(it.memoryId === id));
-                Wall._save();
-                Wall._render();
+                let removedAny = false;
+                Wall.walls.forEach(w => {
+                    const before = w.items.length;
+                    w.items = w.items.filter(it => !(it.memoryId === id));
+                    if (w.items.length !== before) removedAny = true;
+                });
+                if (removedAny) { Wall._save(); Wall._render(); }
             }
 
             // 3. 如果正好删了当前最新一张，刷新首页缩略图
@@ -1822,9 +1826,16 @@ const App = {
         let mem = 0, wall = 0;
         try {
             const m = JSON.parse(localStorage.getItem('pawlaroid_memories') || '[]');
-            const w = JSON.parse(localStorage.getItem('pawlaroid_wall') || '[]');
             mem = Array.isArray(m) ? m.length : 0;
-            wall = Array.isArray(w) ? w.length : 0;
+            // 多墙结构：统计所有墙的物件总数（兼容旧单墙 key）
+            const wr = localStorage.getItem('pawlaroid_walls');
+            if (wr) {
+                const o = JSON.parse(wr);
+                (o.walls || []).forEach(ww => { wall += (ww.items || []).length; });
+            } else {
+                const legacy = JSON.parse(localStorage.getItem('pawlaroid_wall') || '[]');
+                wall = Array.isArray(legacy) ? legacy.length : 0;
+            }
         } catch (e) {}
         el.textContent = `当前版本 ${this.VERSION} · 仓库：回忆 ${mem} 条 · 展示墙 ${wall} 个`;
     },
@@ -1874,7 +1885,7 @@ const App = {
     /** 清空全部本地数据并重置（排障用：排除旧脏数据 / 跨源残留导致的不显示） */
     resetLocalData() {
         try {
-            ['pawlaroid_memories', 'pawlaroid_wall', 'pawlaroid_pet'].forEach(k => localStorage.removeItem(k));
+            ['pawlaroid_memories', 'pawlaroid_wall', 'pawlaroid_walls', 'pawlaroid_pet'].forEach(k => localStorage.removeItem(k));
             this.toast('已清空本地数据，正在重启…');
             setTimeout(() => location.reload(), 600);
         } catch (e) {
@@ -1884,7 +1895,7 @@ const App = {
     /** 把全部应用数据导出为一个 JSON 文件（跨源/换设备迁移用） */
     exportBackup() {
         try {
-            const keys = ['pawlaroid_memories', 'pawlaroid_wall', 'pawlaroid_pet'];
+            const keys = ['pawlaroid_memories', 'pawlaroid_wall', 'pawlaroid_walls', 'pawlaroid_pet'];
             const data = { _app: 'Pawlaroid', _version: 1, _exportedAt: new Date().toISOString(), store: {} };
             keys.forEach(k => { data.store[k] = localStorage.getItem(k); });
             const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
@@ -1928,26 +1939,40 @@ const App = {
                         console.warn('[importBackup] 写入', k, '超出本地存储上限', e);
                     }
                 });
-                // 2) 写展示墙：把“能对应到已导入记忆”的拍立得，在写入前就去掉自带 src 副本
-                //    （改为渲染时按 memoryId 取图），这样即便备份很大，墙也能成功导入而不触发配额失败。
-                if (store['pawlaroid_wall'] != null) {
-                    try {
-                        const wallArr = JSON.parse(store['pawlaroid_wall']);
-                        const memIds = new Set(JSON.parse(localStorage.getItem('pawlaroid_memories') || '[]').map(m => m.id));
-                        const slim = Array.isArray(wallArr) ? wallArr.map(it => {
-                            if (it && it.type === 'polaroid' && it.memoryId && memIds.has(it.memoryId)) {
-                                const c = Object.assign({}, it);
-                                delete c.src;
-                                return c;
-                            }
-                            return it;
-                        }) : wallArr;
-                        localStorage.setItem('pawlaroid_wall', JSON.stringify(slim));
+                // 2) 写展示墙：多墙结构。把“能对应到已导入记忆”的拍立得去掉自带 src 副本
+                //    （改为渲染时按 memoryId 取图），避免大图把配额占满导致导入失败。
+                const slimWallItems = (arr) => {
+                    const memIds = new Set(JSON.parse(localStorage.getItem('pawlaroid_memories') || '[]').map(m => m.id));
+                    return (Array.isArray(arr) ? arr : []).map(it => {
+                        if (it && it.type === 'polaroid' && it.memoryId && memIds.has(it.memoryId)) {
+                            const c = Object.assign({}, it);
+                            delete c.src;
+                            return c;
+                        }
+                        return it;
+                    });
+                };
+                try {
+                    if (store['pawlaroid_walls'] != null) {
+                        // 新结构：直接写入（逐墙 slim）
+                        const obj = JSON.parse(store['pawlaroid_walls']);
+                        obj.walls = (obj.walls || []).map(w => Object.assign({}, w, { items: slimWallItems(w.items || []) }));
+                        localStorage.setItem('pawlaroid_walls', JSON.stringify(obj));
                         count++;
-                    } catch (e) {
-                        quotaHit = true;
-                        console.warn('[importBackup] 写入 pawlaroid_wall 超出本地存储上限', e);
+                    } else if (store['pawlaroid_wall'] != null) {
+                        // 旧单墙备份：迁移进 default 墙
+                        const legacy = JSON.parse(store['pawlaroid_wall']);
+                        const walls = [{
+                            id: 'default', name: '我的回忆墙', theme: 'felt', themeVariant: 'cream',
+                            createdAt: new Date().toISOString().slice(0, 10),
+                            items: slimWallItems(Array.isArray(legacy) ? legacy : [])
+                        }];
+                        localStorage.setItem('pawlaroid_walls', JSON.stringify({ walls, currentWallId: 'default' }));
+                        count++;
                     }
+                } catch (e) {
+                    quotaHit = true;
+                    console.warn('[importBackup] 写入展示墙超出本地存储上限', e);
                 }
                 if (count === 0) { this.toast('备份文件里没有可导入的数据'); return; }
                 // 刷新内存中的数据（Wall 有缓存数组，需要重新 _load）
@@ -1980,15 +2005,17 @@ const App = {
             if (typeof Wall === 'undefined') return;
             Wall._load();
             let changed = false;
-            Wall.data = Wall.data.map(it => {
-                if (it.type === 'polaroid' && it.memoryId && it.src &&
-                    typeof PawMemory !== 'undefined' && PawMemory.get(it.memoryId)) {
-                    const cp = Object.assign({}, it);
-                    delete cp.src;
-                    changed = true;
-                    return cp;
-                }
-                return it;
+            Wall.walls.forEach(w => {
+                w.items = w.items.map(it => {
+                    if (it.type === 'polaroid' && it.memoryId && it.src &&
+                        typeof PawMemory !== 'undefined' && PawMemory.get(it.memoryId)) {
+                        const cp = Object.assign({}, it);
+                        delete cp.src;
+                        changed = true;
+                        return cp;
+                    }
+                    return it;
+                });
             });
             if (changed) Wall._save();
         } catch (e) { /* 回收失败不影响使用 */ }
@@ -2067,28 +2094,31 @@ const App = {
                     try {
                         Wall._load();
                         let wallChanged = false;
-                        const newWall = [];
-                        for (const it of Wall.data) {
-                            if (it.type === 'polaroid') {
-                                const cp = Object.assign({}, it);
-                                if (it.memoryId && it.src) {
-                                    // 有记忆关联 → 删掉缓存 src，渲染时从 PawMemory 取
-                                    delete cp.src;
-                                    wallChanged = true;
-                                } else if (!it.memoryId && it.src) {
-                                    // 无记忆关联的老数据 → 裁剪 src 本身
-                                    const cropped = await this.__cropPolaroidImage(it.src);
-                                    if (cropped && cropped !== it.src) {
-                                        cp.src = cropped;
+                        for (const w of Wall.walls) {
+                            const newItems = [];
+                            for (const it of w.items) {
+                                if (it.type === 'polaroid') {
+                                    const cp = Object.assign({}, it);
+                                    if (it.memoryId && it.src) {
+                                        // 有记忆关联 → 删掉缓存 src，渲染时从 PawMemory 取
+                                        delete cp.src;
                                         wallChanged = true;
+                                    } else if (!it.memoryId && it.src) {
+                                        // 无记忆关联的老数据 → 裁剪 src 本身
+                                        const cropped = await this.__cropPolaroidImage(it.src);
+                                        if (cropped && cropped !== it.src) {
+                                            cp.src = cropped;
+                                            wallChanged = true;
+                                        }
                                     }
+                                    newItems.push(cp);
+                                } else {
+                                    newItems.push(it);
                                 }
-                                newWall.push(cp);
-                            } else {
-                                newWall.push(it);
                             }
+                            w.items = newItems;
                         }
-                        if (wallChanged) { Wall.data = newWall; Wall._save(); }
+                        if (wallChanged) Wall._save();
                         Wall._render();
                     } catch (_) {}
                 }
