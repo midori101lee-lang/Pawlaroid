@@ -2437,6 +2437,49 @@ body {
     .wall-pin-hint { right: 28px; bottom: calc(100px + env(safe-area-inset-bottom)); }
 }
 
+/* ============ 首次固定教学弹窗（一次性） ============ */
+.wall-pin-guide {
+    position: absolute;
+    inset: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: rgba(60,40,25,0.35);
+    z-index: 60;
+    animation: guideFade .2s ease;
+}
+@keyframes guideFade { from { opacity: 0; } to { opacity: 1; } }
+.wall-pin-guide-card {
+    width: min(80vw, 300px);
+    background: #fffdf8;
+    border: 1px solid #ffd29a;
+    border-radius: 20px;
+    padding: 26px 22px 22px;
+    text-align: center;
+    box-shadow: 0 18px 40px rgba(80,50,25,0.30);
+    animation: guidePop .28s cubic-bezier(.2,.9,.3,1.4);
+}
+@keyframes guidePop {
+    0%   { transform: scale(0.8); opacity: 0; }
+    100% { transform: scale(1); opacity: 1; }
+}
+.wall-pin-guide-emoji { font-size: 42px; line-height: 1; margin-bottom: 8px; }
+.wall-pin-guide-title { font-size: 18px; font-weight: 700; color: #6D4A33; margin-bottom: 10px; }
+.wall-pin-guide-text { font-size: 14px; color: #8a6a4f; line-height: 1.7; margin-bottom: 18px; }
+.wall-pin-guide-ok {
+    display: inline-block;
+    padding: 10px 30px;
+    border: none;
+    border-radius: 999px;
+    background: linear-gradient(135deg, #FFB36B, #FF6B3D);
+    color: #fff;
+    font-size: 15px;
+    font-weight: 600;
+    cursor: pointer;
+    box-shadow: 0 6px 14px rgba(255,107,61,0.35);
+}
+.wall-pin-guide-ok:active { transform: translateY(1px); }
+
 @keyframes wallPop {
     0%   { transform: translate(-50%,-50%) scale(0.6) rotate(var(--r,0deg)); opacity: 0; }
     100% { transform: translate(-50%,-50%) scale(1) rotate(var(--r,0deg)); opacity: 1; }

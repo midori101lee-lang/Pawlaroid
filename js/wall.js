@@ -130,6 +130,10 @@ const Wall = {
                 if (it.pinned && !it.attachmentType) it.attachmentType = 'pin';
             } else if (it.type === 'pin') {
                 if (it.pinnedTo && !it.attachmentType) it.attachmentType = 'pin';
+                // 相对锚点：图钉位置按住片 width/height 比例计算，缩放/大小不同都正确贴合（兼容旧数据）
+                if (!it.pinAnchor || typeof it.pinAnchor.x !== 'number' || typeof it.pinAnchor.y !== 'number') {
+                    it.pinAnchor = { x: 0.5, y: 0 };   // 默认：照片顶部中心
+                }
             }
         });
     },
@@ -493,7 +497,7 @@ const Wall = {
             scale: (cfg.defaultScale != null) ? cfg.defaultScale : 1,
             baseSize: cfg.defaultSize || this.BASE.pin,
             pinnedTo: '',              // 未绑定（空字符串 = 自由元素，不固定任何照片）
-            pinOffX: 0, pinOffY: 0,
+            pinAnchor: cfg.anchor || { x: 0.5, y: 0 },   // 相对锚点：图钉位置按照片 width/height 比例计算
             attachmentType: cfg.attachmentType || 'pin'   // 固定方式（pin/magnet/tape…），数据驱动、不写死
         };
         this.data.push(item);
@@ -555,7 +559,10 @@ const Wall = {
                 el.classList.add('pin-attached');           // 图钉弹跳吸附动画
                 const rh = el.querySelector('.wall-rotate'); if (rh) rh.style.display = 'none';
                 const sh = el.querySelector('.wall-scale');  if (sh) sh.style.display = 'none';
-                this._toast('已固定到回忆墙 ❤️');
+                // 首次固定 → 一次性教学弹窗；之后仅保留轻提示（不重复打扰）
+                const isFirst = (() => { try { return localStorage.getItem('pinGuideShown') !== 'true'; } catch (e) { return true; } })();
+                this._showPinGuide(at);
+                if (!isFirst) this._toast('已固定到回忆墙 ❤️');
                 this._refreshUnpinnedTags();                // 更新/收起首次引导
             } else {
                 // 已绑定：图钉“钉在照片上”，继续贴合照片上沿
@@ -578,22 +585,50 @@ const Wall = {
         }
     },
 
-    /* 把已关联的图钉贴到照片顶部中心（分辨率无关：用照片当前渲染尺寸反算百分比）。
-       照片被拖动 / 缩放 / 旋转后调用，图钉始终“钉在照片上沿”。 */
+    /* 把已关联的图钉贴到照片的“相对锚点”上（分辨率 / 缩放无关）：
+       图钉位置 = 照片中心 + 锚点偏移(按照片当前渲染宽高比例) - 上抬量(按图钉自身高度)。
+       大 / 小尺寸、缩放、旋转后调用，图钉永远“钉在照片对应位置”，不再悬空。
+       例：pinAnchor={x:0.5,y:0} → 照片顶部中心。*/
     _syncPinToPhoto(photo, photoEl) {
         if (!photo || !photoEl || !this.stage) return;
         const pin = this.data.find(d => d.type === 'pin' && d.pinnedTo === photo.id);
         if (!pin) return;
         const stageR = this.stage.getBoundingClientRect();
-        const pR = photoEl.getBoundingClientRect();
-        const cx = (pR.left + pR.width / 2 - stageR.left) / stageR.width * 100;
-        const topY = (pR.top - stageR.top) / stageR.height * 100 - 2; // 略高于上沿
-        pin.x = Math.max(0, Math.min(100, cx));
-        pin.y = Math.max(0, Math.min(100, topY));
-        pin.pinOffX = pin.x - (photo.x || 50);
-        pin.pinOffY = pin.y - (photo.y || 50);
-        const pinEl = this.stage.querySelector(`.wall-item[data-id="${pin.id}"]`);
-        if (pinEl) { pinEl.style.left = pin.x + '%'; pinEl.style.top = pin.y + '%'; }
+        if (!stageR.width || !stageR.height) return;
+        // 用 offset 尺寸（不含 transform / 入场动画缩放）推算“真实渲染尺寸”：
+        // 渲染尺寸 = offset × 用户 scale，并叠加 rotation 旋转后的包围盒
+        // （w·|sinθ| + h·|cosθ|），从而避开 wallPop 入场动画(0.4→1)与图片未解码的过渡态，
+        // 又能正确反映缩放与旋转后的实际占位——图钉在 DOM 入场的瞬间即可算对位置
+        // （图片解码后由 decode/load/rAF 再同步一次高度）。
+        const pscale = photo.scale || 1;
+        const ow = (photoEl.offsetWidth || 0) * pscale;
+        const oh = (photoEl.offsetHeight || 0) * pscale;
+        // 图片尚未加载/解码（卡片坍塌）时跳过，避免把图钉锁死在错误位置；
+        // 待图片 decode / load / rAF 重同步时会以真实尺寸重新计算。
+        if (ow < 4 || oh < 4) return;
+        const rad = (photo.rotation || 0) * Math.PI / 180;
+        const cosR = Math.abs(Math.cos(rad)), sinR = Math.abs(Math.sin(rad));
+        // 旋转后的真实渲染宽高（bounding box），与 getBoundingClientRect 一致但不含动画干扰
+        const renderedW = ow * cosR + oh * sinR;
+        const renderedH = ow * sinR + oh * cosR;
+        const stageW = stageR.width, stageH = stageR.height;
+        // 锚点（相对照片比例）：x:0.5,y:0 = 照片顶部中心
+        const ax = (pin.pinAnchor && typeof pin.pinAnchor.x === 'number') ? pin.pinAnchor.x : 0.5;
+        const ay = (pin.pinAnchor && typeof pin.pinAnchor.y === 'number') ? pin.pinAnchor.y : 0;
+        // 照片渲染尺寸换算成“占舞台的百分比”，使锚点随照片大小动态变化（大/小尺寸自适应）
+        const photoWPct = renderedW / stageW * 100;
+        const photoHPct = renderedH / stageH * 100;
+        const anchorXPct = (photo.x || 50) + (ax - 0.5) * photoWPct;
+        const anchorYPct = (photo.y || 50) + (ay - 0.5) * photoHPct;
+        // 图钉自身渲染高度（百分比）→ 仅当锚点在顶部(y:0)时上抬，让图钉“钩”住照片上沿
+        const pinEl0 = this.stage.querySelector(`.wall-item[data-id="${pin.id}"]`);
+        const pinScale = pin.scale || 1;
+        const pinHPx = pinEl0 ? (pinEl0.offsetHeight || 0) * pinScale : (this.BASE.pin * pinScale);
+        const pinHPct = pinHPx / stageH * 100;
+        const liftPct = (ay <= 0.001) ? pinHPct * 0.3 : 0;
+        pin.x = Math.max(0, Math.min(100, anchorXPct));
+        pin.y = Math.max(0, Math.min(100, anchorYPct - liftPct));
+        if (pinEl0) { pinEl0.style.left = pin.x + '%'; pinEl0.style.top = pin.y + '%'; }
     },
 
     /* ---------- 首次固定引导 ---------- */
@@ -657,6 +692,21 @@ const Wall = {
         if (this.selectedId && !this.data.find(d => d.id === this.selectedId)) {
             this.selectedId = null;
         }
+        // 渲染后按相对锚点重排已绑定图钉，保证大/小尺寸与缩放后图钉都贴合照片
+        this._resyncBoundPins();
+        // 兜底：rAF 后布局稳定（含已缓存图片）再同步一次，避免首帧坍塌尺寸把图钉锁死
+        requestAnimationFrame(() => this._resyncBoundPins());
+    },
+
+    /* 把所有“已绑定”的图钉按各自照片的当前位置/尺寸重新吸附（载入/重渲染/切主题后调用） */
+    _resyncBoundPins() {
+        if (!this.stage) return;
+        this.data.forEach(d => {
+            if (d.type === 'polaroid' && d.pinned) {
+                const phEl = this.stage.querySelector(`.wall-item[data-id="${d.id}"]`);
+                if (phEl) this._syncPinToPhoto(d, phEl);
+            }
+        });
     },
 
     _buildItem(it) {
@@ -693,6 +743,11 @@ const Wall = {
             img.className = 'wall-img';
             img.src = this._resolvePolaroidSrc(it);
             img.draggable = false;
+            // 图片加载/解码完成后，照片真实尺寸才确定，重同步其关联图钉（相对锚点按真实尺寸计算）
+            img.addEventListener('load', () => this._resyncBoundPins());
+            img.addEventListener('error', () => this._resyncBoundPins());
+            // decode() 对“已缓存/同步完成”与“异步解码”都能可靠回调，比 load 更稳
+            if (img.decode) img.decode().then(() => this._resyncBoundPins()).catch(() => {});
             el.appendChild(img);
         }
 
@@ -712,22 +767,22 @@ const Wall = {
         el.appendChild(del);
         // 已吸附的图钉是“固定件”，不再提供旋转手柄（强调它是钉在照片上的工具）
         if (it.type === 'pin' && it.pinnedTo) rotH.style.display = 'none';
-        // 已固定的照片：隐藏缩放/旋转手柄（固定态不可编辑），仅保留删除=取消固定
+        // 已固定的照片：保留缩放 / 旋转手柄（固定态允许调尺寸、调角度），
+        // 仅删除键含义变为“取消固定”（移除图钉、保留照片，恢复自由编辑）
         if (it.type === 'polaroid' && it.pinned) {
-            scaleH.style.display = 'none';
-            rotH.style.display = 'none';
             del.title = '取消固定（移除图钉）';
         }
 
         // 交互：手柄优先，编辑态不拖拽，其余交给统一拖拽逻辑
         el.addEventListener('pointerdown', (e) => {
-            // 已固定的照片：默认禁止拖动/缩放/旋转，仅允许选中与删除（删除=取消固定）
+            // 已固定的照片：禁止普通拖动，但允许缩放 / 旋转 / 取消固定（删图钉）
             if (it.type === 'polaroid' && it.pinned) {
                 this._select(it.id);
-                if (e.target === del) { this._remove(it.id); return; }       // 删除=取消固定
-                if (e.target === scaleH || e.target === rotH) { e.preventDefault(); return; } // 禁缩放/旋转
+                if (e.target === del) { this._unpinPhoto(it.id); return; }          // 取消固定：移除图钉、保留照片
+                if (e.target === scaleH) { this._startScale(e, it, el); return; }   // 允许调整尺寸
+                if (e.target === rotH) { this._startRotate(e, it, el); return; }    // 允许旋转角度
                 e.preventDefault();
-                this._toast('这张回忆已经固定，需要取消图钉后才能移动');
+                this._toast('这张回忆已固定，点左上角 × 取消图钉即可重新调整位置~');
                 return;
             }
             if (e.target === scaleH) {
@@ -863,6 +918,7 @@ const Wall = {
             const d = Math.hypot(ev.clientX - cx, ev.clientY - cy);
             it.scale = Math.max(0.3, Math.min(3, startScale * (d / startDist)));
             el.style.transform = `translate(-50%,-50%) rotate(${it.rotation}deg) scale(${it.scale})`;
+            if (it.type === 'polaroid') this._syncPinToPhoto(it, el);   // 缩放时图钉实时跟随锚点
         };
         const up = () => {
             document.removeEventListener('pointermove', move);
@@ -911,6 +967,7 @@ const Wall = {
             const a = Math.atan2(ev.clientY - cy, ev.clientX - cx) * 180 / Math.PI;
             it.rotation = startRot + (a - startAngle);
             el.style.transform = `translate(-50%,-50%) rotate(${it.rotation}deg) scale(${it.scale})`;
+            if (it.type === 'polaroid') this._syncPinToPhoto(it, el);   // 旋转时图钉实时跟随锚点
         };
         const up = () => {
             document.removeEventListener('pointermove', move);
@@ -948,6 +1005,59 @@ const Wall = {
         const node = this.stage.querySelector(`.wall-item[data-id="${id}"]`);
         if (node) node.remove();
         this._refreshUnpinnedTags();
+    },
+
+    /* 取消固定：移除该照片关联的所有图钉（解绑）并恢复照片为自由编辑态。
+       照片本身保留（与“删除照片”区分开，符合“取消图钉即可恢复自由编辑”）。 */
+    _unpinPhoto(photoId) {
+        const ph = this.data.find(d => d.id === photoId);
+        if (!ph) return;
+        // 移除关联图钉元素 + 数据
+        this.data.filter(d => d.type === 'pin' && d.pinnedTo === photoId).forEach(pin => {
+            const n = this.stage.querySelector(`.wall-item[data-id="${pin.id}"]`);
+            if (n) n.remove();
+        });
+        this.data = this.data.filter(d => !(d.type === 'pin' && d.pinnedTo === photoId));
+        // 照片恢复自由
+        ph.pinned = false; ph.attachmentType = '';
+        const phEl = this.stage.querySelector(`.wall-item[data-id="${photoId}"]`);
+        if (phEl) {
+            phEl.classList.remove('pinned', 'att-pin', 'att-magnet', 'att-tape');
+            const sh = phEl.querySelector('.wall-scale'); if (sh) sh.style.display = '';
+            const rh = phEl.querySelector('.wall-rotate'); if (rh) rh.style.display = '';
+            const dl = phEl.querySelector('.wall-del'); if (dl) dl.title = '移除';
+        }
+        this._save();
+        this._toast('已取消固定，现在可以重新调整啦～');
+    },
+
+    /* 首次固定教学弹窗（一次性）：pin / magnet 文案不同，点击“我知道了”后
+       localStorage 记录 pinGuideShown=true，之后不再弹出。 */
+    _showPinGuide(type) {
+        try { if (localStorage.getItem('pinGuideShown') === 'true') return; } catch (e) {}
+        const isMagnet = (type === 'magnet');
+        const emoji = isMagnet ? '🧲' : '📌';
+        const title = isMagnet ? '磁铁已吸附回忆' : '图钉已固定回忆';
+        const body = isMagnet
+            ? '吸附后的拍立得不会自由移动，<br>取消磁铁即可重新调整。'
+            : '固定后的拍立得不会自由移动，<br>取消图钉即可重新调整。';
+        const overlay = document.createElement('div');
+        overlay.className = 'wall-pin-guide';
+        overlay.innerHTML =
+            '<div class="wall-pin-guide-card">' +
+                '<div class="wall-pin-guide-emoji">' + emoji + '</div>' +
+                '<div class="wall-pin-guide-title">' + title + '</div>' +
+                '<div class="wall-pin-guide-text">' + body + '</div>' +
+                '<button class="wall-pin-guide-ok">我知道了</button>' +
+            '</div>';
+        const close = () => {
+            try { localStorage.setItem('pinGuideShown', 'true'); } catch (e) {}
+            if (overlay.parentNode) overlay.parentNode.removeChild(overlay);
+        };
+        overlay.querySelector('.wall-pin-guide-ok').addEventListener('click', close);
+        overlay.addEventListener('pointerdown', (e) => { if (e.target === overlay) close(); });
+        const view = document.getElementById('view-wall') || document.body;
+        view.appendChild(overlay);
     },
 
     _rand(min, max) { return Math.random() * (max - min) + min; },
