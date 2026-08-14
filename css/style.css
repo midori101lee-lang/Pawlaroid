@@ -2309,6 +2309,102 @@ body {
     filter: drop-shadow(0 4px 6px rgba(120,80,40,0.18));
 }
 
+/* ============ 图钉 = 固定回忆（把照片钉在墙上的工具） ============ */
+/* 已固定照片：比未固定更“稳”——阴影略收、加一圈柔和钉痕高光，呈现贴墙感 */
+.wall-item.type-polaroid.pinned .wall-img {
+    box-shadow:
+        0 8px 18px rgba(120,80,40,0.22),
+        0 2px 5px rgba(120,80,40,0.16),
+        inset 0 0 0 1px rgba(255,255,255,0.6);
+}
+/* 图钉吸附到照片上沿后的弹跳入场 */
+.wall-item.type-pin.pin-attached {
+    animation: pinPop 0.5s cubic-bezier(.2,.9,.3,1.5);
+    filter: drop-shadow(0 5px 7px rgba(120,80,40,0.28));
+}
+@keyframes pinPop {
+    0%   { transform: translate(-50%,-50%) scale(0.4) rotate(-25deg); opacity: 0; }
+    60%  { transform: translate(-50%,-50%) scale(1.18) rotate(6deg);   opacity: 1; }
+    100% { transform: translate(-50%,-50%) scale(1) rotate(0deg); }
+}
+/* 照片被钉住的轻微“沉降”反馈 */
+.wall-item.type-polaroid.pin-settle { animation: pinSettle 0.45s ease; }
+@keyframes pinSettle {
+    0%   { transform: translate(-50%,-50%) rotate(var(--r,0deg)) scale(1); }
+    30%  { transform: translate(-50%,-50%) rotate(var(--r,0deg)) scale(1.03) translateY(-2px); }
+    100% { transform: translate(-50%,-50%) rotate(var(--r,0deg)) scale(1); }
+}
+
+/* ============ 首次固定引导 ============ */
+/* 未固定照片：虚线描边 + “未固定”角标，提示用户需要图钉 */
+.wall-item.type-polaroid.unpinned {
+    outline: 2px dashed rgba(255,122,60,0.55);
+    outline-offset: 4px;
+    border-radius: 8px;
+}
+.wall-item.type-polaroid.unpinned::after {
+    content: "未固定";
+    position: absolute;
+    left: 50%; top: -14px;
+    transform: translateX(-50%);
+    background: rgba(255,122,60,0.92);
+    color: #fff;
+    font-size: 11px;
+    line-height: 1;
+    padding: 3px 8px;
+    border-radius: 10px;
+    white-space: nowrap;
+    pointer-events: none;
+    box-shadow: 0 2px 6px rgba(120,80,40,0.25);
+}
+/* 引导气泡：浮在 🐾 工具按钮上方，不遮挡主要内容 */
+.wall-pin-hint {
+    position: absolute;
+    right: 18px;
+    bottom: calc(150px + env(safe-area-inset-bottom));
+    max-width: 240px;
+    background: #fffdf8;
+    border: 1px solid #ffd29a;
+    border-radius: 16px;
+    padding: 12px 14px 14px;
+    box-shadow: 0 10px 26px rgba(120,80,40,0.22);
+    z-index: 40;
+    animation: hintFloat 1.8s ease-in-out infinite;
+}
+@keyframes hintFloat {
+    0%, 100% { transform: translateY(0); }
+    50%      { transform: translateY(-6px); }
+}
+.wall-pin-hint-text { font-size: 13.5px; color: #6D4A33; line-height: 1.5; }
+.wall-pin-hint-text strong { color: #FF6B3D; }
+.wall-pin-hint-arrow {
+    text-align: right;
+    font-size: 20px;
+    color: #FF6B3D;
+    line-height: 1;
+    animation: arrowBounce 1.1s ease-in-out infinite;
+}
+@keyframes arrowBounce {
+    0%, 100% { transform: translateY(0);   opacity: .7; }
+    50%      { transform: translateY(5px); opacity: 1; }
+}
+.wall-pin-hint-close {
+    position: absolute;
+    top: -8px; right: -8px;
+    width: 22px; height: 22px;
+    border-radius: 50%;
+    border: none;
+    background: #e8674f;
+    color: #fff;
+    font-size: 14px;
+    line-height: 1;
+    cursor: pointer;
+    box-shadow: 0 2px 5px rgba(120,80,40,0.25);
+}
+@media (min-width: 768px) {
+    .wall-pin-hint { right: 28px; bottom: calc(100px + env(safe-area-inset-bottom)); }
+}
+
 @keyframes wallPop {
     0%   { transform: translate(-50%,-50%) scale(0.6) rotate(var(--r,0deg)); opacity: 0; }
     100% { transform: translate(-50%,-50%) scale(1) rotate(var(--r,0deg)); opacity: 1; }
@@ -2503,6 +2599,15 @@ body {
     padding-left: 8px;
     border-left: 3px solid #ffb877;
 }
+/* 工具箱“固定回忆”分区下方的轻提示，强调图钉是固定工具而非装饰 */
+.wall-panel-section-hint {
+    font-size: 11.5px;
+    color: #b07a45;
+    line-height: 1.5;
+    margin: -4px 2px 10px;
+    padding-left: 8px;
+}
+.wall-panel-section-hint strong { color: #FF6B3D; }
 /* 小纸条色卡：复用 .wall-note-swatch（见上），但放进网格里更整齐 */
 .wall-note-list .wall-note-swatch {
     min-height: 56px;

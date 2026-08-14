@@ -30,6 +30,11 @@ const Wall = {
     selectedId: null,
     gesture: null,
 
+    /* 首次固定引导状态（不写入存储模型，仅本会话） */
+    tipActive: false,
+    pinTipEl: null,
+    tipTimer: null,
+
     /* 各类元素基础显示尺寸（px），scale 在此基础上倍增 */
     BASE: { polaroid: 196, sticker: 90, pin: 56, note: 184 },
 
@@ -57,6 +62,8 @@ const Wall = {
         // 预加载贴纸配置（http 下 fetch stickers.json；file:// 下回退注入数组）
         this._loadStickerConfig();
         this._render();
+        // 首次进入展示墙：若有未固定照片，给出“用图钉固定回忆”的轻引导
+        this._maybeShowPinTip();
     },
 
     /* 工具栏按钮绑定（🐾 贴纸 / 🧰 工具箱 / 浮动按钮 / 关闭面板） */
@@ -267,6 +274,8 @@ const Wall = {
     },
 
     _addDecor(type, cfg) {
+        // 图钉不是普通装饰，而是“把照片固定在墙上”的工具 → 自动吸附到照片顶部并关联
+        if (type === 'pin') { this._addPin(cfg); return; }
         this._load();
         // 贴纸图片走 assetConfig.resolve 拼前缀（assets/），同源加载导出不污染画布
         let src = cfg.dataUri || (cfg.image || cfg.file);
@@ -290,6 +299,170 @@ const Wall = {
         this._togglePanel(null);
     },
 
+    /* 新增图钉：作为“固定工具”而非普通装饰 —— 自动吸附到最近（且未固定）照片的顶部，
+       与照片建立关联（pinnedTo），之后图钉位置随照片移动。 */
+    _addPin(cfg) {
+        this._load();
+        // 图钉资源：PAW_PINS 注入的是内联 SVG data URI，直接用（不要经 assetConfig 解析成 assets/ 路径）
+        const src = this._resolveDecorSrc(cfg);
+        const photos = this.data.filter(d => d.type === 'polaroid');
+        if (!photos.length) {
+            // 墙上还没有照片：退化成普通装饰并给出轻提示，不破坏原有添加能力
+            this._addFreePin(cfg, src);
+            this._toast('先在墙上放一张照片，再用图钉固定它吧～');
+            return;
+        }
+        // 选目标：优先离墙中心最近、且尚未固定的照片；若都已固定则选最近的（允许换钉）
+        const target = this._pickPinTarget(photos);
+        // 目标已有图钉则复用，避免一张照片叠多枚
+        let pin = this.data.find(d => d.type === 'pin' && d.pinnedTo === target.id);
+        if (!pin) {
+            pin = {
+                id: 'p_' + Date.now() + '_' + Math.floor(Math.random() * 1e4),
+                type: 'pin',
+                decorId: cfg.id || '',     // 记录图钉 id，供 Exporter 反查内联资源
+                src: src,
+                x: target.x, y: target.y,
+                rotation: (cfg.defaultRotation != null) ? cfg.defaultRotation : this._rand(-8, 8),
+                scale: (cfg.defaultScale != null) ? cfg.defaultScale : 1,
+                baseSize: cfg.defaultSize || this.BASE.pin,
+                pinnedTo: target.id,       // 与照片建立关联（固定态）
+                pinOffX: 0, pinOffY: 0
+            };
+            this.data.push(pin);
+        } else {
+            pin.decorId = cfg.id || '';
+            pin.src = src;
+            pin.scale = (cfg.defaultScale != null) ? cfg.defaultScale : 1;
+        }
+        target.pinned = true;              // 照片进入“已固定”状态
+        this._save();
+        this._render();
+        this._select(pin.id);
+        this._togglePanel(null);
+        // 将图钉定位到照片顶部中心，并播放吸附/固定反馈
+        const photoEl = this.stage.querySelector(`.wall-item[data-id="${target.id}"]`);
+        this._syncPinToPhoto(target, photoEl);
+        if (photoEl) {
+            photoEl.classList.add('pin-settle');           // 照片轻微“被钉住”的反馈
+            setTimeout(() => photoEl.classList.remove('pin-settle'), 450);
+        }
+        const pinEl = this.stage.querySelector(`.wall-item[data-id="${pin.id}"]`);
+        if (pinEl) pinEl.classList.add('pin-attached');    // 图钉弹跳入场
+        this._toast('已收藏 ❤️');
+        this._refreshUnpinnedTags();                       // 更新/收起首次引导
+    },
+
+    /* 无照片时的退化添加：保持原“自由装饰”能力，不吸附 */
+    _addFreePin(cfg, src) {
+        const item = {
+            id: 'p_' + Date.now() + '_' + Math.floor(Math.random() * 1e4),
+            type: 'pin',
+            decorId: cfg.id || '',
+            src: src,
+            x: 50, y: 50,
+            rotation: (cfg.defaultRotation != null) ? cfg.defaultRotation : this._rand(-8, 8),
+            scale: (cfg.defaultScale != null) ? cfg.defaultScale : 1,
+            baseSize: cfg.defaultSize || this.BASE.pin
+        };
+        this.data.push(item);
+        this._save();
+        this._render();
+        this._select(item.id);
+        this._togglePanel(null);
+    },
+
+    /* 解析装饰资源地址：贴纸是 assets/ 相对路径需 resolve；图钉是内联 SVG data URI，直接用 */
+    _resolveDecorSrc(cfg) {
+        if (cfg.dataUri) return cfg.dataUri;
+        if (cfg.file && String(cfg.file).indexOf('data:') === 0) return cfg.file;
+        if (cfg.image && window.ASSET_CONFIG && window.ASSET_CONFIG.resolve) {
+            return window.ASSET_CONFIG.resolve(cfg.image);
+        }
+        return cfg.file || cfg.image || '';
+    },
+
+    /* 选固定目标：未固定优先，再按离墙心距离取最近 */
+    _pickPinTarget(photos) {
+        const unpinned = photos.filter(p => !p.pinned);
+        const pool = unpinned.length ? unpinned : photos;
+        let best = pool[0], bestD = Infinity;
+        for (const p of pool) {
+            const d = Math.hypot((p.x || 50) - 50, (p.y || 50) - 50);
+            if (d < bestD) { bestD = d; best = p; }
+        }
+        return best;
+    },
+
+    /* 把已关联的图钉贴到照片顶部中心（分辨率无关：用照片当前渲染尺寸反算百分比）。
+       照片被拖动 / 缩放 / 旋转后调用，图钉始终“钉在照片上沿”。 */
+    _syncPinToPhoto(photo, photoEl) {
+        if (!photo || !photoEl || !this.stage) return;
+        const pin = this.data.find(d => d.type === 'pin' && d.pinnedTo === photo.id);
+        if (!pin) return;
+        const stageR = this.stage.getBoundingClientRect();
+        const pR = photoEl.getBoundingClientRect();
+        const cx = (pR.left + pR.width / 2 - stageR.left) / stageR.width * 100;
+        const topY = (pR.top - stageR.top) / stageR.height * 100 - 2; // 略高于上沿
+        pin.x = Math.max(0, Math.min(100, cx));
+        pin.y = Math.max(0, Math.min(100, topY));
+        pin.pinOffX = pin.x - (photo.x || 50);
+        pin.pinOffY = pin.y - (photo.y || 50);
+        const pinEl = this.stage.querySelector(`.wall-item[data-id="${pin.id}"]`);
+        if (pinEl) { pinEl.style.left = pin.x + '%'; pinEl.style.top = pin.y + '%'; }
+    },
+
+    /* ---------- 首次固定引导 ---------- */
+    _maybeShowPinTip() {
+        if (this._tipActive) return;
+        try { if (localStorage.getItem('pawlaroid_wall_pin_tip') === '1') return; } catch (e) {}
+        const unpinned = this.data.filter(d => d.type === 'polaroid' && !d.pinned);
+        if (!unpinned.length) return;
+        this._tipActive = true;
+        // 未固定照片加角标（虚线 + “未固定”）
+        unpinned.forEach(p => {
+            const el = this.stage.querySelector(`.wall-item[data-id="${p.id}"]`);
+            if (el) el.classList.add('unpinned');
+        });
+        const view = document.getElementById('view-wall');
+        if (!view) return;
+        const hint = document.createElement('div');
+        hint.className = 'wall-pin-hint';
+        hint.innerHTML =
+            '<button class="wall-pin-hint-close" aria-label="知道了">×</button>' +
+            '<div class="wall-pin-hint-arrow">↑</div>' +
+            '<div class="wall-pin-hint-text">📌 用一枚图钉，把这张回忆<strong>固定</strong>在墙上吧</div>';
+        hint.querySelector('.wall-pin-hint-close').addEventListener('click', () => this._dismissPinTip());
+        view.appendChild(hint);
+        this._pinTipEl = hint;
+        this._tipTimer = setTimeout(() => this._dismissPinTip(), 12000); // 12s 后自动消失
+    },
+
+    /* 收起引导：移除角标 + 气泡，并记下“已看过”（仅首次） */
+    _dismissPinTip() {
+        this._tipActive = false;
+        if (this._pinTipEl) { this._pinTipEl.remove(); this._pinTipEl = null; }
+        if (this.stage) {
+            this.stage.querySelectorAll('.wall-item.type-polaroid.unpinned').forEach(n => n.classList.remove('unpinned'));
+        }
+        try { localStorage.setItem('pawlaroid_wall_pin_tip', '1'); } catch (e) {}
+        if (this._tipTimer) { clearTimeout(this._tipTimer); this._tipTimer = null; }
+    },
+
+    /* 固定一张照片后刷新角标；若已全部固定则收起引导 */
+    _refreshUnpinnedTags() {
+        if (!this._tipActive) return;
+        const unpinned = this.data.filter(d => d.type === 'polaroid' && !d.pinned);
+        if (this.stage) {
+            this.stage.querySelectorAll('.wall-item.type-polaroid').forEach(n => n.classList.remove('unpinned'));
+            unpinned.forEach(p => {
+                const el = this.stage.querySelector(`.wall-item[data-id="${p.id}"]`);
+                if (el) el.classList.add('unpinned');
+            });
+        }
+        if (!unpinned.length) this._dismissPinTip();
+    },
+
     /* ---------- 渲染 ---------- */
     _render() {
         if (!this.stage) return;
@@ -304,7 +477,10 @@ const Wall = {
 
     _buildItem(it) {
         const el = document.createElement('div');
-        el.className = 'wall-item type-' + it.type + (it.id === this.selectedId ? ' selected' : '');
+        let cls = 'wall-item type-' + it.type + (it.id === this.selectedId ? ' selected' : '');
+        if (it.type === 'polaroid' && it.pinned) cls += ' pinned';       // 已固定：轻微“钉住”效果
+        if (it.type === 'pin' && it.pinnedTo) cls += ' pin-attached';     // 已吸附到照片
+        el.className = cls;
         el.dataset.id = it.id;
         const base = it.baseSize || this.BASE[it.type] || 120;
         // 小纸条：支持独立宽高调整（noteW / noteH）
@@ -346,6 +522,8 @@ const Wall = {
         el.appendChild(scaleH);
         el.appendChild(rotH);
         el.appendChild(del);
+        // 已吸附的图钉是“固定件”，不再提供旋转手柄（强调它是钉在照片上的工具）
+        if (it.type === 'pin' && it.pinnedTo) rotH.style.display = 'none';
 
         // 交互：手柄优先，编辑态不拖拽，其余交给统一拖拽逻辑
         el.addEventListener('pointerdown', (e) => {
@@ -427,6 +605,13 @@ const Wall = {
             it.y = Math.max(0, Math.min(100, startT + dy));
             el.style.left = it.x + '%';
             el.style.top = it.y + '%';
+            // 固定态（不改动照片自身位移逻辑，仅让关联图钉跟随）：图钉随照片移动
+            if (it.type === 'polaroid') this._syncPinToPhoto(it, el);
+            // 被固定的图钉被拖动时，重算相对照片的偏移，保持“还钉在同一张照片上”
+            if (it.type === 'pin' && it.pinnedTo) {
+                const ph = this.data.find(d => d.id === it.pinnedTo);
+                if (ph) { it.pinOffX = it.x - (ph.x || 50); it.pinOffY = it.y - (ph.y || 50); }
+            }
         };
         const up = (ev) => {
             document.removeEventListener('pointermove', move);
@@ -452,6 +637,13 @@ const Wall = {
             it.y = Math.max(0, Math.min(100, startT + dy));
             el.style.left = it.x + '%';
             el.style.top = it.y + '%';
+            // 固定态（不改动照片自身位移逻辑，仅让关联图钉跟随）：图钉随照片移动
+            if (it.type === 'polaroid') this._syncPinToPhoto(it, el);
+            // 被固定的图钉被拖动时，重算相对照片的偏移，保持“还钉在同一张照片上”
+            if (it.type === 'pin' && it.pinnedTo) {
+                const ph = this.data.find(d => d.id === it.pinnedTo);
+                if (ph) { it.pinOffX = it.x - (ph.x || 50); it.pinOffY = it.y - (ph.y || 50); }
+            }
         };
         const up = () => {
             document.removeEventListener('pointermove', move);
@@ -478,6 +670,8 @@ const Wall = {
         const up = () => {
             document.removeEventListener('pointermove', move);
             document.removeEventListener('pointerup', up);
+            // 照片缩放后，固定其上的图钉重新贴合上沿（不改变照片缩放逻辑）
+            if (it.type === 'polaroid') this._syncPinToPhoto(it, el);
             this._save();
         };
         document.addEventListener('pointermove', move);
@@ -524,6 +718,8 @@ const Wall = {
         const up = () => {
             document.removeEventListener('pointermove', move);
             document.removeEventListener('pointerup', up);
+            // 照片旋转后，固定其上的图钉重新贴合上沿（不改变照片旋转逻辑）
+            if (it.type === 'polaroid') this._syncPinToPhoto(it, el);
             this._save();
         };
         document.addEventListener('pointermove', move);
@@ -531,7 +727,13 @@ const Wall = {
     },
 
     _remove(id) {
+        const removed = this.data.find(d => d.id === id);
         this.data = this.data.filter(d => d.id !== id);
+        // 删除图钉时，解除照片的“已固定”状态（不改变其他删除逻辑）
+        if (removed && removed.type === 'pin' && removed.pinnedTo) {
+            const ph = this.data.find(d => d.id === removed.pinnedTo);
+            if (ph) { ph.pinned = false; }
+        }
         if (this.selectedId === id) this.selectedId = null;
         this._save();
         const node = this.stage.querySelector(`.wall-item[data-id="${id}"]`);
@@ -541,6 +743,7 @@ const Wall = {
     _rand(min, max) { return Math.random() * (max - min) + min; },
 
     _toast(msg) {
-        if (window.App && App.toast) App.toast(msg);
+        // App 在本项目是顶层 const（不挂 window），需用 typeof 判断而非 window.App
+        if (typeof App !== 'undefined' && App.toast) App.toast(msg);
     }
 };
