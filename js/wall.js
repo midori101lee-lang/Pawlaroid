@@ -1157,17 +1157,19 @@ const Wall = {
         if (menu) menu.hidden = true;
     },
 
-    /* 刷新切换器：当前墙名 + 列表（名称 / 物件数 / 选中态） */
+    /* 刷新切换器：当前墙名 + 列表（名称 / 物件数 / 选中态）
+       头部装饰 🐾 已写在 HTML 的 .wall-switch-emoji 里，这里只放自定义名，
+       避免出现「🐾🐾+名」的重复占位。 */
     _renderWallSwitch() {
         const nameEl = document.getElementById('wallSwitchName');
-        if (nameEl) nameEl.textContent = '🐾 ' + (this.getCurrentWallName() || '我的回忆墙');
+        if (nameEl) nameEl.textContent = this.getCurrentWallName() || '我的回忆墙';
         const listEl = document.getElementById('wallSwitchList');
         if (!listEl) return;
         listEl.innerHTML = '';
         this.walls.forEach(w => {
             const item = document.createElement('button');
             item.className = 'wall-switch-item' + (w.id === this.currentWallId ? ' active' : '');
-            item.innerHTML = `<span class="wall-switch-item-name">🐾 ${this._escapeHtml(w.name)}</span>` +
+            item.innerHTML = `<span class="wall-switch-item-name">${this._escapeHtml(w.name)}</span>` +
                 `<span class="wall-switch-item-count">${(w.items || []).length}</span>`;
             item.addEventListener('click', () => { this._closeSwitchMenu(); this.switchWall(w.id); });
             listEl.appendChild(item);

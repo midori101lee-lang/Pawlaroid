@@ -2240,6 +2240,49 @@ body {
     color: #c07a2e; border-radius: 10px; padding: 9px; font-size: 13.5px; font-weight: 700; cursor: pointer;
 }
 .wall-switch-new:active { transform: scale(.98); }
+
+/* ============ 移动端顶栏：紧凑化，确保导出按钮不被裁切 ============ */
+@media (max-width: 640px) {
+    .wall-header {
+        gap: 5px;
+        padding: 9px 10px 8px;
+    }
+    .btn-back { width: 30px; height: 30px; }
+    .wall-switch {
+        /* 顶栏最占位的元素：限制宽度、缩小字号，避免主题/导出被挤掉 */
+        max-width: 36vw;
+        font-size: 13.5px;
+        padding: 5px 10px 5px 8px;
+        gap: 4px;
+        border-radius: 999px;
+    }
+    .wall-switch-emoji { font-size: 13px; }
+    .wall-switch-caret { font-size: 10px; }
+    /* 重命名按钮：缩为 30px 圆按钮，仍可点 */
+    .wall-rename-btn {
+        width: 30px; height: 30px;
+        font-size: 13px;
+    }
+    /* 主题按钮：移动端只留 🎨 图标，去掉"毛毡照片板/软木照片墙/冰箱磁贴墙"长标签 */
+    .wall-theme-btn {
+        margin-left: 0;
+        padding: 5px 7px;
+        gap: 0;
+        border-radius: 50%;
+        width: 30px; height: 30px;
+        justify-content: center;
+    }
+    .wall-theme-btn .wall-theme-label,
+    .wall-theme-btn .wall-theme-ico + .wall-theme-label { display: none; }
+    .wall-theme-btn .wall-theme-ico { font-size: 15px; }
+    /* 导出按钮：缩小 padding + 字号，但保留"导出回忆"可读文案 */
+    .wall-export-btn {
+        padding: 6px 10px;
+        font-size: 12px;
+        border-radius: 14px;
+        letter-spacing: 0;
+    }
+}
 /* 容量提示横幅 */
 .wall-capacity {
     display: flex; align-items: center; gap: 12px; flex-wrap: wrap;
