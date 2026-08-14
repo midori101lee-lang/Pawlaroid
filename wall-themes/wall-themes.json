@@ -9,7 +9,8 @@
     "variants": [
       { "id": "cream", "name": "奶油白", "file": "backgrounds/felt-cream.webp", "overlay": "linear-gradient(180deg, rgba(255,252,245,0.10), rgba(238,222,194,0.22))", "accent": "#E2A35B", "titleColor": "#6B4A2E" },
       { "id": "sage", "name": "鼠尾草绿", "file": "backgrounds/felt-sage.webp", "overlay": "linear-gradient(180deg, rgba(232,240,225,0.10), rgba(176,192,160,0.26))", "accent": "#7FA079", "titleColor": "#3F5A3C" },
-      { "id": "misty", "name": "雾霾蓝-樱花粉", "file": "backgrounds/felt-misty.webp", "overlay": "linear-gradient(180deg, rgba(224,232,240,0.08), rgba(205,180,200,0.24))", "accent": "#8AA0BC", "titleColor": "#3F4E63" }
+      { "id": "misty", "name": "雾霾蓝", "file": "backgrounds/felt-misty.webp", "overlay": "linear-gradient(180deg, rgba(214,226,238,0.10), rgba(150,175,200,0.26))", "accent": "#8AA0BC", "titleColor": "#3F4E63" },
+      { "id": "sakura", "name": "樱花粉", "file": "backgrounds/felt-sakura.webp", "overlay": "linear-gradient(180deg, rgba(248,228,236,0.12), rgba(224,170,196,0.26))", "accent": "#D98AAE", "titleColor": "#7A4A5C" }
     ]
   },
   {
