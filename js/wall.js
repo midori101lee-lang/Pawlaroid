@@ -106,6 +106,19 @@ const Wall = {
         } catch (e) {
             this.data = [];
         }
+        this._normalize();
+    },
+    /* 固定态字段兼容：旧数据只有 pinned/pinnedTo，没有 attachmentType。
+       新数据用 attachmentType 区分固定方式（pin/magnet/tape…），为未来不同墙面主题（毛毡/软木/冰箱磁贴）预留扩展点。 */
+    _normalize() {
+        this.data.forEach(it => {
+            if (it.type === 'polaroid') {
+                if (it.pinned == null) it.pinned = false;
+                if (it.pinned && !it.attachmentType) it.attachmentType = 'pin';
+            } else if (it.type === 'pin') {
+                if (it.pinnedTo && !it.attachmentType) it.attachmentType = 'pin';
+            }
+        });
     },
     _save() {
         try {
@@ -305,6 +318,7 @@ const Wall = {
         this._load();
         // 图钉资源：PAW_PINS 注入的是内联 SVG data URI，直接用（不要经 assetConfig 解析成 assets/ 路径）
         const src = this._resolveDecorSrc(cfg);
+        const at = cfg.attachmentType || 'pin';   // 固定方式（pin/magnet/tape…），数据驱动、不写死
         const photos = this.data.filter(d => d.type === 'polaroid');
         if (!photos.length) {
             // 墙上还没有照片：退化成普通装饰并给出轻提示，不破坏原有添加能力
@@ -327,7 +341,8 @@ const Wall = {
                 scale: (cfg.defaultScale != null) ? cfg.defaultScale : 1,
                 baseSize: cfg.defaultSize || this.BASE.pin,
                 pinnedTo: target.id,       // 与照片建立关联（固定态）
-                pinOffX: 0, pinOffY: 0
+                pinOffX: 0, pinOffY: 0,
+                attachmentType: at       // 固定方式（pin/magnet/tape…），未来墙面主题据此切换视觉
             };
             this.data.push(pin);
         } else {
@@ -336,6 +351,7 @@ const Wall = {
             pin.scale = (cfg.defaultScale != null) ? cfg.defaultScale : 1;
         }
         target.pinned = true;              // 照片进入“已固定”状态
+        target.attachmentType = at;       // 记录照片的固定方式，未来软木/冰箱墙可换 magnet 等
         this._save();
         this._render();
         this._select(pin.id);
@@ -344,12 +360,12 @@ const Wall = {
         const photoEl = this.stage.querySelector(`.wall-item[data-id="${target.id}"]`);
         this._syncPinToPhoto(target, photoEl);
         if (photoEl) {
-            photoEl.classList.add('pin-settle');           // 照片轻微“被钉住”的反馈
-            setTimeout(() => photoEl.classList.remove('pin-settle'), 450);
+            photoEl.classList.add('pin-shake');            // 照片轻微晃动（收藏完成的仪式感）
+            setTimeout(() => photoEl.classList.remove('pin-shake'), 600);
         }
         const pinEl = this.stage.querySelector(`.wall-item[data-id="${pin.id}"]`);
         if (pinEl) pinEl.classList.add('pin-attached');    // 图钉弹跳入场
-        this._toast('已收藏 ❤️');
+        this._toast('已固定到回忆墙 ❤️');
         this._refreshUnpinnedTags();                       // 更新/收起首次引导
     },
 
@@ -478,7 +494,10 @@ const Wall = {
     _buildItem(it) {
         const el = document.createElement('div');
         let cls = 'wall-item type-' + it.type + (it.id === this.selectedId ? ' selected' : '');
-        if (it.type === 'polaroid' && it.pinned) cls += ' pinned';       // 已固定：轻微“钉住”效果
+        if (it.type === 'polaroid' && it.pinned) {
+            cls += ' pinned';                                  // 已固定：轻微“钉住”效果
+            if (it.attachmentType) cls += ' att-' + it.attachmentType;  // 固定方式视觉（att-pin / att-magnet…）
+        }
         if (it.type === 'pin' && it.pinnedTo) cls += ' pin-attached';     // 已吸附到照片
         el.className = cls;
         el.dataset.id = it.id;
@@ -524,9 +543,24 @@ const Wall = {
         el.appendChild(del);
         // 已吸附的图钉是“固定件”，不再提供旋转手柄（强调它是钉在照片上的工具）
         if (it.type === 'pin' && it.pinnedTo) rotH.style.display = 'none';
+        // 已固定的照片：隐藏缩放/旋转手柄（固定态不可编辑），仅保留删除=取消固定
+        if (it.type === 'polaroid' && it.pinned) {
+            scaleH.style.display = 'none';
+            rotH.style.display = 'none';
+            del.title = '取消固定（移除图钉）';
+        }
 
         // 交互：手柄优先，编辑态不拖拽，其余交给统一拖拽逻辑
         el.addEventListener('pointerdown', (e) => {
+            // 已固定的照片：默认禁止拖动/缩放/旋转，仅允许选中与删除（删除=取消固定）
+            if (it.type === 'polaroid' && it.pinned) {
+                this._select(it.id);
+                if (e.target === del) { this._remove(it.id); return; }       // 删除=取消固定
+                if (e.target === scaleH || e.target === rotH) { e.preventDefault(); return; } // 禁缩放/旋转
+                e.preventDefault();
+                this._toast('这张回忆已经固定，需要取消图钉后才能移动');
+                return;
+            }
             if (e.target === scaleH) {
                 // 小纸条 → 自由长宽调整；其他物件 → 等比缩放
                 if (it.type === 'note') this._startNoteScale(e, it, el);
@@ -728,16 +762,25 @@ const Wall = {
 
     _remove(id) {
         const removed = this.data.find(d => d.id === id);
-        this.data = this.data.filter(d => d.id !== id);
-        // 删除图钉时，解除照片的“已固定”状态（不改变其他删除逻辑）
+        // 删除图钉 → 解除照片固定态（不改变其他删除逻辑）
         if (removed && removed.type === 'pin' && removed.pinnedTo) {
             const ph = this.data.find(d => d.id === removed.pinnedTo);
-            if (ph) { ph.pinned = false; }
+            if (ph) { ph.pinned = false; ph.attachmentType = ''; }
         }
+        // 删除照片 → 一并移除其关联图钉（避免孤儿 pin 指向已删照片）
+        if (removed && removed.type === 'polaroid') {
+            this.data.filter(d => d.type === 'pin' && d.pinnedTo === id).forEach(pin => {
+                const pinNode = this.stage.querySelector(`.wall-item[data-id="${pin.id}"]`);
+                if (pinNode) pinNode.remove();
+            });
+            this.data = this.data.filter(d => !(d.type === 'pin' && d.pinnedTo === id));
+        }
+        this.data = this.data.filter(d => d.id !== id);
         if (this.selectedId === id) this.selectedId = null;
         this._save();
         const node = this.stage.querySelector(`.wall-item[data-id="${id}"]`);
         if (node) node.remove();
+        this._refreshUnpinnedTags();
     },
 
     _rand(min, max) { return Math.random() * (max - min) + min; },

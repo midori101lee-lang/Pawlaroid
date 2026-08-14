@@ -2312,10 +2312,12 @@ body {
 /* ============ 图钉 = 固定回忆（把照片钉在墙上的工具） ============ */
 /* 已固定照片：比未固定更“稳”——阴影略收、加一圈柔和钉痕高光，呈现贴墙感 */
 .wall-item.type-polaroid.pinned .wall-img {
+    /* 比未固定更“贴墙”：阴影更近、更深，减少漂浮感，模拟被钉住的照片 */
     box-shadow:
-        0 8px 18px rgba(120,80,40,0.22),
-        0 2px 5px rgba(120,80,40,0.16),
-        inset 0 0 0 1px rgba(255,255,255,0.6);
+        0 6px 13px rgba(90,60,30,0.30),
+        0 2px 4px rgba(90,60,30,0.20),
+        inset 0 0 0 1px rgba(255,255,255,0.5);
+    transition: box-shadow .25s ease;
 }
 /* 图钉吸附到照片上沿后的弹跳入场 */
 .wall-item.type-pin.pin-attached {
@@ -2327,12 +2329,35 @@ body {
     60%  { transform: translate(-50%,-50%) scale(1.18) rotate(6deg);   opacity: 1; }
     100% { transform: translate(-50%,-50%) scale(1) rotate(0deg); }
 }
-/* 照片被钉住的轻微“沉降”反馈 */
+/* 照片被钉住的轻微“沉降”反馈（保留，备用） */
 .wall-item.type-polaroid.pin-settle { animation: pinSettle 0.45s ease; }
 @keyframes pinSettle {
     0%   { transform: translate(-50%,-50%) rotate(var(--r,0deg)) scale(1); }
     30%  { transform: translate(-50%,-50%) rotate(var(--r,0deg)) scale(1.03) translateY(-2px); }
     100% { transform: translate(-50%,-50%) rotate(var(--r,0deg)) scale(1); }
+}
+/* 固定瞬间：照片轻微左右晃动，强化“收藏完成”的仪式感 */
+.wall-item.type-polaroid.pin-shake { animation: pinShake 0.6s ease; }
+@keyframes pinShake {
+    0%   { transform: translate(-50%,-50%) rotate(var(--r,0deg)) scale(1); }
+    15%  { transform: translate(-50%,-50%) rotate(calc(var(--r,0deg) - 4deg)) scale(1.02); }
+    35%  { transform: translate(-50%,-50%) rotate(calc(var(--r,0deg) + 3deg)) scale(1.02); }
+    55%  { transform: translate(-50%,-50%) rotate(calc(var(--r,0deg) - 2deg)) scale(1); }
+    75%  { transform: translate(-50%,-50%) rotate(calc(var(--r,0deg) + 1deg)) scale(1); }
+    100% { transform: translate(-50%,-50%) rotate(var(--r,0deg)) scale(1); }
+}
+/* 固定方式视觉（数据驱动，不写死）：att-pin 当前实现；未来 att-magnet/att-tape 在此追加对应样式。
+   毛毡墙=图钉(pin) / 软木墙=木钉·胶带(tape) / 冰箱磁贴墙=磁铁(magnet)，皆由 it.attachmentType 切换。 */
+.wall-item.type-polaroid.att-pin.pinned::after {
+    content: "";
+    position: absolute;
+    left: 50%; top: 4%;
+    width: 12px; height: 12px;
+    transform: translateX(-50%);
+    border-radius: 50%;
+    background: radial-gradient(circle at 40% 35%, rgba(255,255,255,0.85), rgba(255,255,255,0) 70%);
+    pointer-events: none;
+    z-index: 2;
 }
 
 /* ============ 首次固定引导 ============ */
