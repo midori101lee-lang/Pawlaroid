@@ -1,9 +1,6 @@
-/* 相纸配置（frames/frames.js）— file:// 兜底（同源 WebP，绝对可用）
- * http(s) 下由 PaperStyles 读取 frames/frames.json（同源，始终最新）；
- * file:// 直接打开时 fetch 被 CORS 拦截，改走本文件注入的 window.PAW_FRAMES。
- * 路径相对化（frames/xxx.webp），由 js/assetConfig.js 的 resolve() 拼前缀。
- * 仓库不含任何内联 base64 原图；全部相框随仓库公开部署。
- */
+/* 相纸配置兜底（assets/config/frames.js）— file:// 下 fetch 本地 JSON 被 CORS 拦截时的注入。
+ * http(s) 下由 AssetManager 读取 assets/config/frames.json（同源，始终最新）；
+ * 此文件与 frames.json 内容需保持一致（提交系统会自动同步两者）。 */
 window.PAW_FRAMES = [
   { "name": "经典白边", "thumbnail": "frames/classic_white.webp", "image": "frames/classic_white.webp" },
   { "name": "森林绿色", "thumbnail": "frames/forest_green.webp",  "image": "frames/forest_green.webp" },

@@ -2,28 +2,18 @@
    paperStyles.js - 相纸样式（动态加载）
    边框资源不再写死在代码中，页面加载时自动生成列表。
 
-   两种环境兼容：
-   - http(s)（如 localhost:8090）：fetch frames/frames.json（始终最新）
-   - file:// 直接打开：fetch 被 CORS 拦截，改用 <script> 注入的
-     window.PAW_FRAMES（见 frames/frames.js）
+   统一经 js/assetManager.js 双源加载：
+   - http(s)：fetch assets/config/frames.json（始终最新，提交系统改 JSON 即生效）
+   - file://：fetch 被 CORS 拦截，回退 <script> 注入的 window.PAW_FRAMES（assets/config/frames.js）
 
-   新增边框：把 WebP 放进 frames/，
-   在 frames.json 与 frames.js 各加一行，刷新网页即可出现。
-   配置不写死在代码里，无硬编码相纸名。
-
-   frames.json / frames.js 格式：
-   [
-     { "name": "经典白边", "thumbnail": "xxx.webp", "image": "xxx.webp" }
-   ]
+   新增边框：把 WebP 放进 assets/frames/，在 assets/config/frames.json 与
+   assets/config/frames.js 各加一行，刷新网页即可出现。配置不写死在代码里。
    ======================================== */
 
 const PaperStyles = {
 
-    /* 边框所在目录（站点根目录下的相对路径） */
-    FRAME_DIR: 'frames/',
-
-    /* frames.json 地址：仓库内同源清单（始终全量，打开即玩） */
-    JSON_URL: 'frames/frames.json',
+    /* 边框配置统一经 AssetManager 加载（assets/config/frames.json，file:// 回退 window.PAW_FRAMES） */
+    JSON_URL: 'assets/config/frames.json',
 
     /* 动态加载后的相纸列表 */
     frames: [],
@@ -55,36 +45,8 @@ const PaperStyles = {
      */
     async load() {
         if (this.loaded) return;
-        let loaded = false;
-
-        // 1) http(s)：fetch frames.json（始终最新，改 JSON 即生效）
-        try {
-            const res = await fetch(this.JSON_URL, { cache: 'no-store' });
-            if (res.ok) {
-                const raw = await res.json();
-                const list = Array.isArray(raw) ? raw : [];
-                if (list.length) {
-                    this.frames = list.map((f, i) => this.normalize(f, i));
-                    loaded = true;
-                }
-            }
-        } catch (e) {
-            // file:// 下 fetch 被浏览器拦截，走下方 window.PAW_FRAMES 兜底
-            console.warn('[PaperStyles] fetch frames.json 失败（可能为 file:// 环境），尝试 window.PAW_FRAMES：', e);
-        }
-
-        // 2) file://：读取 <script> 注入的 window.PAW_FRAMES（绕过 CORS）
-        if (!loaded && typeof window.PAW_FRAMES !== 'undefined' && Array.isArray(window.PAW_FRAMES) && window.PAW_FRAMES.length) {
-            this.frames = window.PAW_FRAMES.map((f, i) => this.normalize(f, i));
-            loaded = true;
-        }
-
-        // 3) 兜底：仅经典白边（同样经 resolve 拼前缀，避免 404）
-        if (!loaded || this.frames.length === 0) {
-            this.loadError = !loaded;
-            this.frames = this.fallback.map((f, i) => this.normalize(f, i));
-        }
-
+        // 统一经 AssetManager 双源加载（http: assets/config/frames.json；file://: window.PAW_FRAMES）
+        this.frames = await AssetManager.load('frames');
         this.loaded = true;
     },
 

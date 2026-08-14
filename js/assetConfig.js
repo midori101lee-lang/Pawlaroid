@@ -16,12 +16,8 @@
     base: BASE,
 
     // 统一拼前缀：resolve('frames/x.webp') -> 'assets/frames/x.webp'
-    resolve: function (p) { return BASE + p; },
-
-    // 逻辑资产键（代码统一走这里，避免散落硬编码）
-    homeHero: 'home/hero.webp',
-    boneCta:  'home/bone-cta.webp',
-    wallBg:   'backgrounds/wall-bg.webp',
-    tmTitle:  'titles/time-machine-title.webp'
+    // 逻辑资产键（homeHero/wallBg/tmTitle...）已移交 js/assetManager.js 的
+    // AssetManager.logical(key)，避免两处维护。
+    resolve: function (p) { return BASE + p; }
   };
 })();

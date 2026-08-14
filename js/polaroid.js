@@ -110,8 +110,10 @@ const Polaroid = {
         try {
             frameImg = await this.preloadFrame(paperFile);
         } catch (e) {
-            // 加载失败时回退到默认相纸
-            frameImg = await this.preloadFrame(window.ASSET_CONFIG ? window.ASSET_CONFIG.resolve('frames/classic_white.webp') : 'frames/classic_white.webp');
+            // 加载失败时回退到默认相纸（统一经 AssetManager 解析，单一入口）
+            const __def = (window.AssetManager ? AssetManager.resolve('frames/classic_white.webp')
+                : (window.ASSET_CONFIG ? window.ASSET_CONFIG.resolve('frames/classic_white.webp') : 'assets/frames/classic_white.webp'));
+            frameImg = await this.preloadFrame(__def);
         }
 
         // 2. 创建画布（按 PNG 原生像素）

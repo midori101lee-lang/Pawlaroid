@@ -1,0 +1,42 @@
+/* 固定件配置兜底（assets/config/pins.js）— file:// 友好注入。
+ * 与 pins.json 内容需保持一致（提交系统会自动同步两者）。
+ * 这里只描述「画什么」（参数），由 AttachmentFactory 负责「怎么画」（生成 SVG data URI）。
+ * 若 AttachmentFactory 尚未加载（顺序问题），回退为不含 file 的原始列表，
+ * 此时 http 路径（AssetManager 取 pins.json）仍正常。 */
+(function () {
+    var RAW = [
+        { id: "pin_orange", name: "橙色图钉", type: "pin", attachmentType: "pin", light: "#FF9A6B", mid: "#FF6B3D", dark: "#E14B22", size: 56, wallTheme: ["felt"] },
+        { id: "pin_red", name: "红色图钉", type: "pin", attachmentType: "pin", light: "#FF9A9A", mid: "#F4605A", dark: "#C62B22", size: 56, wallTheme: ["felt"] },
+        { id: "pin_yellow", name: "黄色图钉", type: "pin", attachmentType: "pin", light: "#FFE08A", mid: "#FFC23D", dark: "#E09A14", size: 56, wallTheme: ["felt"] },
+        { id: "pin_blue", name: "蓝色图钉", type: "pin", attachmentType: "pin", light: "#A6C8FF", mid: "#4D8DFC", dark: "#2C63D6", size: 56, wallTheme: ["felt"] },
+        { id: "pin_green", name: "绿色图钉", type: "pin", attachmentType: "pin", light: "#A6E6A0", mid: "#5FCB6B", dark: "#2F9B47", size: 56, wallTheme: ["felt"] },
+        { id: "pin_pink", name: "粉色图钉", type: "pin", attachmentType: "pin", light: "#FFB0D4", mid: "#FF7EB4", dark: "#E84F95", size: 56, wallTheme: ["felt"] },
+        { id: "btn_cream", name: "奶油白纽扣", type: "button", attachmentType: "button", r1: "#FBF2DE", r2: "#F2E2C4", r3: "#E2C79B", r4: "#CBA874", rh: "#7A5634", stitch: "#C9A877", size: 48, wallTheme: ["cork"] },
+        { id: "btn_tan", name: "浅木纽扣", type: "button", attachmentType: "button", r1: "#EBD3A6", r2: "#D8B97E", r3: "#C29E62", r4: "#A8814A", rh: "#6B4A28", stitch: "#B58F55", size: 48, wallTheme: ["cork"] },
+        { id: "btn_caramel", name: "焦糖纽扣", type: "button", attachmentType: "button", r1: "#D6A86B", r2: "#C08E4C", r3: "#A8763A", r4: "#8C5E2A", rh: "#5E3D1C", stitch: "#9C7236", size: 48, wallTheme: ["cork"] },
+        { id: "btn_brown", name: "原木纽扣", type: "button", attachmentType: "button", r1: "#B98A55", r2: "#9E6F3E", r3: "#84592F", r4: "#6B4723", rh: "#47301A", stitch: "#7E5630", size: 48, wallTheme: ["cork"] },
+        { id: "btn_terra", name: "陶土红纽扣", type: "button", attachmentType: "button", r1: "#D38E6B", r2: "#BC6F4E", r3: "#A35636", r4: "#863F25", rh: "#5A2815", stitch: "#9B5435", size: 48, wallTheme: ["cork"] },
+        { id: "btn_dark", name: "深棕纽扣", type: "button", attachmentType: "button", r1: "#9C6E44", r2: "#7E5230", r3: "#653F22", r4: "#4E2E16", rh: "#33200F", stitch: "#5E3A1F", size: 48, wallTheme: ["cork"] },
+        { id: "magnet_flower_red", name: "花朵红", type: "magnet", attachmentType: "magnet", shape: "flower", li: "#FF9C9C", mi: "#F56A6A", da: "#D94444", edge: "#C53B3B", hi: "rgba(255,255,255,0.5)", size: 48, wallTheme: ["fridge"] },
+        { id: "magnet_flower_yellow", name: "花朵黄", type: "magnet", attachmentType: "magnet", shape: "flower", li: "#FFE08A", mi: "#FFC23D", da: "#E8A013", edge: "#D4910F", hi: "rgba(255,255,255,0.55)", size: 48, wallTheme: ["fridge"] },
+        { id: "magnet_flower_blue", name: "花朵蓝", type: "magnet", attachmentType: "magnet", shape: "flower", li: "#A9CCFF", mi: "#5C97F4", da: "#3A72D8", edge: "#2F62BD", hi: "rgba(255,255,255,0.5)", size: 48, wallTheme: ["fridge"] },
+        { id: "magnet_flower_mint", name: "花朵薄荷", type: "magnet", attachmentType: "magnet", shape: "flower", li: "#B6EFD2", mi: "#69D6A4", da: "#3FBF87", edge: "#2FA873", hi: "rgba(255,255,255,0.5)", size: 48, wallTheme: ["fridge"] },
+        { id: "magnet_flower_pink", name: "花朵粉", type: "magnet", attachmentType: "magnet", shape: "flower", li: "#FFB6D6", mi: "#FF84BA", da: "#EF5C9E", edge: "#DD4A8C", hi: "rgba(255,255,255,0.5)", size: 48, wallTheme: ["fridge"] },
+        { id: "magnet_star_red", name: "星星红", type: "magnet", attachmentType: "magnet", shape: "star", li: "#FF9C9C", mi: "#F56A6A", da: "#D94444", edge: "#C53B3B", hi: "rgba(255,255,255,0.5)", size: 48, wallTheme: ["fridge"] },
+        { id: "magnet_star_yellow", name: "星星黄", type: "magnet", attachmentType: "magnet", shape: "star", li: "#FFE08A", mi: "#FFC23D", da: "#E8A013", edge: "#D4910F", hi: "rgba(255,255,255,0.55)", size: 48, wallTheme: ["fridge"] },
+        { id: "magnet_star_blue", name: "星星蓝", type: "magnet", attachmentType: "magnet", shape: "star", li: "#A9CCFF", mi: "#5C97F4", da: "#3A72D8", edge: "#2F62BD", hi: "rgba(255,255,255,0.5)", size: 48, wallTheme: ["fridge"] },
+        { id: "magnet_star_mint", name: "星星薄荷", type: "magnet", attachmentType: "magnet", shape: "star", li: "#B6EFD2", mi: "#69D6A4", da: "#3FBF87", edge: "#2FA873", hi: "rgba(255,255,255,0.5)", size: 48, wallTheme: ["fridge"] },
+        { id: "magnet_star_pink", name: "星星粉", type: "magnet", attachmentType: "magnet", shape: "star", li: "#FFB6D6", mi: "#FF84BA", da: "#EF5C9E", edge: "#DD4A8C", hi: "rgba(255,255,255,0.5)", size: 48, wallTheme: ["fridge"] },
+        { id: "magnet_heart_red", name: "爱心红", type: "magnet", attachmentType: "magnet", shape: "heart", li: "#FF9C9C", mi: "#F56A6A", da: "#D94444", edge: "#C53B3B", hi: "rgba(255,255,255,0.5)", size: 48, wallTheme: ["fridge"] },
+        { id: "magnet_heart_yellow", name: "爱心黄", type: "magnet", attachmentType: "magnet", shape: "heart", li: "#FFE08A", mi: "#FFC23D", da: "#E8A013", edge: "#D4910F", hi: "rgba(255,255,255,0.55)", size: 48, wallTheme: ["fridge"] },
+        { id: "magnet_heart_blue", name: "爱心蓝", type: "magnet", attachmentType: "magnet", shape: "heart", li: "#A9CCFF", mi: "#5C97F4", da: "#3A72D8", edge: "#2F62BD", hi: "rgba(255,255,255,0.5)", size: 48, wallTheme: ["fridge"] },
+        { id: "magnet_heart_mint", name: "爱心薄荷", type: "magnet", attachmentType: "magnet", shape: "heart", li: "#B6EFD2", mi: "#69D6A4", da: "#3FBF87", edge: "#2FA873", hi: "rgba(255,255,255,0.5)", size: 48, wallTheme: ["fridge"] },
+        { id: "magnet_heart_pink", name: "爱心粉", type: "magnet", attachmentType: "magnet", shape: "heart", li: "#FFB6D6", mi: "#FF84BA", da: "#EF5C9E", edge: "#DD4A8C", hi: "rgba(255,255,255,0.5)", size: 48, wallTheme: ["fridge"] }
+    ];
+    window.PAW_PINS = RAW.map(function (p) {
+        var item = Object.assign({}, p);
+        if (window.AttachmentFactory) item.file = window.AttachmentFactory.create(p);
+        item.defaultSize = p.size;
+        return item;
+    });
+})();

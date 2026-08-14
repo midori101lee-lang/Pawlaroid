@@ -258,19 +258,9 @@ const Wall = {
 
     /* ---------- 主题系统 ---------- */
 
-    /* 读取主题配置：http 下优先 fetch 远程 JSON（改 JSON 即生效），否则回退 window.PAW_WALL_THEMES（file:// 友好） */
+    /* 读取主题配置：统一经 AssetManager 双源加载（http: assets/config/themes.json；file://: window.PAW_WALL_THEMES） */
     async _loadThemeConfig() {
-        let arr = (window.PAW_WALL_THEMES || []).slice();
-        if (typeof location !== 'undefined' &&
-            (location.protocol === 'http:' || location.protocol === 'https:')) {
-            try {
-                const res = await fetch('wall-themes/wall-themes.json', { cache: 'no-store' });
-                if (res.ok) {
-                    const json = await res.json();
-                    if (Array.isArray(json) && json.length) arr = json;
-                }
-            } catch (e) { /* 离线 / file:// → 使用注入的 window.PAW_WALL_THEMES */ }
-        }
+        let arr = await AssetManager.load('themes');
         this.themes = arr;
         // 恢复上次选择的主题（持久化）
         try {
@@ -297,13 +287,12 @@ const Wall = {
         if (!t) return null;
         return (t.variants || []).find(v => v.id === (vid || this.themeVariant)) || null;
     },
-    /* 当前主题的装饰集（返回 window.PAW_PINS / PAW_BUTTONS / PAW_MAGNETS） */
+    /* 当前主题的装饰集：统一从 AssetManager 按 wallTheme 过滤
+       （pins.json 中每项声明自己适配哪些主题，新增固定件无需改此逻辑） */
     _getDecorSet() {
         const t = this._getTheme();
-        const set = t ? t.decorSet : 'pins';
-        if (set === 'buttons') return (window.PAW_BUTTONS || []);
-        if (set === 'magnets') return (window.PAW_MAGNETS || []);
-        return (window.PAW_PINS || []);
+        const tid = t ? t.id : 'felt';
+        return AssetManager.getDecor(tid);
     },
 
     /* 渲染主题选择面板：三张主题卡 + 当前主题的花色变体 */
@@ -409,21 +398,9 @@ const Wall = {
         if (el) this._editNote(item, el);
     },
 
-    /* 贴纸配置加载：优先 fetch ./stickers/stickers.json（http(s) 下改 JSON 刷新即生效），
-       回退到 window.PAW_STICKERS（由 stickers.js 注入，file:// 友好）。 */
+    /* 贴纸配置加载：统一经 AssetManager 双源加载（http: assets/config/stickers.json；file://: window.PAW_STICKERS） */
     async _loadStickerConfig() {
-        let arr = (window.PAW_STICKERS || []).slice();
-        if (typeof location !== 'undefined' &&
-            (location.protocol === 'http:' || location.protocol === 'https:')) {
-            try {
-                const url = 'stickers/stickers.json';
-                const res = await fetch(url, { cache: 'no-store' });
-                if (res.ok) {
-                    const json = await res.json();
-                    if (Array.isArray(json) && json.length) arr = json;
-                }
-            } catch (e) { /* 离线 / file:// → 使用注入的 window.PAW_STICKERS */ }
-        }
+        let arr = await AssetManager.load('stickers');
         this._stickers = arr;
         return arr;
     },

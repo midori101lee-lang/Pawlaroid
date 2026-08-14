@@ -689,11 +689,13 @@
     <div class="toast" id="toast"></div>
 
     <script src="js/assetConfig.js"></script>
+    <script src="js/attachmentFactory.js"></script>
+    <script src="js/assetManager.js"></script>
     <script src="js/filmRecipes.js"></script>
     <script src="js/cropper.js"></script>
     <script src="js/handwriting.js"></script>
     <!-- 相纸配置：file:// 下 fetch 本地 JSON 会被 CORS 拦截，故用 <script> 注入 window.PAW_FRAMES 兜底 -->
-    <script src="./frames/frames.js"></script>
+    <script src="./assets/config/frames.js"></script>
     <!-- 导出专用资源：背景 + 贴纸路径，经 js/assetConfig.js 解析（http 同源，不污染 canvas） -->
     <script src="js/assets-export.js"></script>
     <script src="js/paperStyles.js"></script>
@@ -701,12 +703,10 @@
     <script src="js/developing.js"></script>
     <script src="js/memory-store.js"></script>
     <script src="js/app.js"></script>
-    <!-- 展示墙：贴纸 / 图钉清单（file:// 友好，用 window.PAW_* 注入）与独立模块 -->
-    <script src="./stickers/stickers.js"></script>
-    <script src="./pins/pins.js"></script>
-    <script src="./pins/buttons.js"></script>
-    <script src="./pins/magnets.js"></script>
-    <script src="./wall-themes/wall-themes.js"></script>
+    <!-- 展示墙：贴纸 / 固定件清单（file:// 友好，用 window.PAW_* 注入）与独立模块 -->
+    <script src="./assets/config/stickers.js"></script>
+    <script src="./assets/config/pins.js"></script>
+    <script src="./assets/config/themes.js"></script>
     <script src="js/wall.js"></script>
     <!-- 视觉资产统一配置（标题图片路径集中管理，先于时光机加载） -->
     <script src="js/assets.js"></script>

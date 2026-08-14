@@ -13,11 +13,14 @@
    ============================================================ */
 window.PAW_ASSETS = window.PAW_ASSETS || {};
 
-/* 统一经 assetConfig 解析；未加载时回退硬编码公开路径 */
+/* 统一经 AssetManager.logical() 解析（逻辑键集中管理，见 js/assetManager.js）；
+   回退到 ASSET_CONFIG.resolve 以兼容极早期加载顺序 */
 var __AC = window.ASSET_CONFIG;
-var __tmTitle = (__AC && typeof __AC.resolve === 'function')
-    ? __AC.resolve('titles/time-machine-title.webp')
-    : 'assets/titles/time-machine-title.webp';
+var __tmTitle = (window.AssetManager && typeof AssetManager.logical === 'function')
+    ? AssetManager.logical('tmTitle')
+    : ((__AC && typeof __AC.resolve === 'function')
+        ? __AC.resolve('titles/time-machine-title.webp')
+        : 'assets/titles/time-machine-title.webp');
 
 window.PAW_ASSETS = Object.assign(window.PAW_ASSETS, {
     // 时光机顶部标题视觉（替代原“⏳ 时光机 / 和 TA 一起生活的每一天”文字）

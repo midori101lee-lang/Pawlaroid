@@ -189,11 +189,23 @@ const Exporter = {
     },
 
     _resolveStickerSrc(it) {
+        // 已内联（data URI）直接可用
+        if (it.src && String(it.src).indexOf('data:') === 0) return it.src;
+        // 配置驱动：按 decorId / src 文件名反查 assets/config/stickers.json
+        const list = (window.AssetManager ? AssetManager.get('stickers') : []);
+        const pick = (s) => (s ? AssetManager.resolve(s.image) : '');
+        if (it.decorId) {
+            const s = list.find(x => x.id === it.decorId);
+            if (s) return pick(s);
+        }
+        if (it.src) {
+            const base = this._basename(it.src);
+            const s = list.find(x => x.id === base || this._basename(x.image) === base);
+            if (s) return pick(s);
+        }
+        // 历史兜底：assets-export.js 注入的 PAW_STICKER_DATAURI（收口阶段可移除）
         const map = window.PAW_STICKER_DATAURI || {};
-        const byId = it.decorId && map[it.decorId];
-        const byName = it.src && map[this._basename(it.src)];
-        const direct = (it.src && String(it.src).indexOf('data:') === 0) ? it.src : '';
-        return byId || byName || direct || '';
+        return (it.decorId && map[it.decorId]) || (it.src && map[this._basename(it.src)]) || '';
     },
 
     _petName() {

@@ -890,9 +890,9 @@ const App = {
         const paper = PaperStyles.findById(this.state.selectedPaper) || PaperStyles.getAll()[0];
         // 仓库公开版：相纸走 paper.file（assets/ 同源路径），导出同源不污染画布。
         const __AC = window.ASSET_CONFIG;
-        const __defaultFrame = (__AC && typeof __AC.resolve === 'function')
-            ? __AC.resolve('frames/classic_white.webp')
-            : 'assets/frames/classic_white.webp';
+        const __defaultFrame = (window.AssetManager ? AssetManager.resolve('frames/classic_white.webp')
+            : (__AC && typeof __AC.resolve === 'function') ? __AC.resolve('frames/classic_white.webp')
+            : 'assets/frames/classic_white.webp');
         const paperSrc = (paper && paper.dataUri) ? paper.dataUri : (paper ? paper.file : __defaultFrame);
         return Polaroid.render(this.state.processedCanvas, {
             paperFile: paperSrc
