@@ -478,7 +478,7 @@
                 <span class="wall-theme-ico">🎨</span>
                 <span class="wall-theme-label" id="wallThemeLabel">毛毡照片板</span>
             </button>
-            <button class="wall-export-btn" onclick="Exporter.exportWall()">🧸 保存展示墙</button>
+            <button class="wall-export-btn" onclick="ExportManager.openMenu()">🧸 导出回忆</button>
         </div>
 
         <!-- 容量提示横幅：超过推荐上限时显示（不强制新建） -->
@@ -740,8 +740,13 @@
     <script src="js/assets.js"></script>
     <!-- 时光机：浏览回忆（独立模块，不修改拍照流程） -->
     <script src="js/timemachine.js"></script>
-    <!-- 导出功能：展示墙整图 / 时光机成长长图（读取统一 Memory 数据） -->
-    <script src="js/exporter.js"></script>
+    <!-- 导出功能（拆分为共享层 + 纪念长图 + 忠实裸墙）：
+         export-manager.js 须最先加载（声明 ExportShared/DevelopAnimation/ExportManager），
+         随后 diary-export.js（Exporter：4:5 纪念 / 时光机长图）、
+         wall-export.js（WallExport：忠实裸墙 PNG）。 -->
+    <script src="js/export/export-manager.js"></script>
+    <script src="js/export/diary-export.js"></script>
+    <script src="js/export/wall-export.js"></script>
     <!-- 移动端“保存到相册”通用方案（Web Share + 长按兜底，file:// 友好） -->
     <script src="js/share-save.js"></script>
 
