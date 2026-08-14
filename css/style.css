@@ -401,23 +401,25 @@ body {
 .btn-bone-cta:active { transform: scale(0.95); }
 
 /* 首页“最近一张”回忆预览（统一记忆库最新一条）
-   侧边通知式浮窗：锚定 #view-home 右下角（position:relative），完全脱离竖向页面流，
+   侧边通知式浮窗：贴 #view-home 右边缘吸附（position:relative 容器），完全脱离竖向页面流，
    不挤压“咔嚓一下”，也不占陈列空间；仅首页可见（view 切换后随 #view-home 隐藏）。
+   右缘与屏幕齐平、仅左侧圆角，像从边缘探出的消息标签，不再悬空。
    无回忆时 hidden=display:none；显示时从右侧滑入。 */
 .home-recent {
     position: absolute;
-    right: 14px;
+    right: 0;                /* 贴右边缘吸附，不再悬空 */
     top: 70px;               /* 右上角（齿轮下方），避开居中的骨头按钮 */
     z-index: 7;
     margin: 0;
-    padding: 6px 8px 6px 12px;
+    padding: 6px 12px 6px 12px;
     display: flex;
     align-items: center;
     gap: 9px;
     background: #FFFDF8;
     border: 1.5px solid #F2D9B8;
-    border-radius: 999px;     /* 胶囊形消息气泡 */
-    box-shadow: 0 8px 18px rgba(255, 164, 92, 0.22);
+    border-right: none;       /* 右缘与屏幕齐平，视觉吸附 */
+    border-radius: 999px 0 0 999px;   /* 仅左侧圆角，右侧贴边 */
+    box-shadow: -6px 6px 16px rgba(255, 164, 92, 0.20);
     cursor: pointer;
     pointer-events: auto;
     opacity: 0;

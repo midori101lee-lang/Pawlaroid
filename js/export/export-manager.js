@@ -499,15 +499,15 @@ const ExportManager = {
             '  <div class="export-title">把回忆冲洗出来 🐾</div>' +
             '  <button class="export-opt" data-act="wall">' +
             '    <span class="export-opt-ico">🖼</span>' +
-            '    <span class="export-opt-body"><b>导出展示墙</b><i>忠实还原墙面（贴合内容自动裁切）</i></span>' +
+            '    <span class="export-opt-body"><b>导出展示墙</b></span>' +
             '  </button>' +
             '  <button class="export-opt" data-act="wall-full">' +
             '    <span class="export-opt-ico">🗾</span>' +
-            '    <span class="export-opt-body"><b>导出完整墙</b><i>保留完整视角，不裁切</i></span>' +
+            '    <span class="export-opt-body"><b>导出完整墙</b></span>' +
             '  </button>' +
             '  <button class="export-opt" data-act="diary">' +
             '    <span class="export-opt-ico">📖</span>' +
-            '    <span class="export-opt-body"><b>生成回忆长图</b><i>4:5 纪念模板（原样保留）</i></span>' +
+            '    <span class="export-opt-body"><b>生成回忆长图</b></span>' +
             '  </button>' +
             '  <button class="export-cancel" data-act="cancel">取消</button>' +
             '</div>';
