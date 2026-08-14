@@ -1,0 +1,234 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Pawlaroid 素材提交台</title>
+<style>
+  :root{
+    --bg:#fbf7f0; --card:#fffdf9; --ink:#4a3b2e; --muted:#9a8b78;
+    --accent:#E2A35B; --accent2:#7FA079; --line:#efe6d8; --danger:#c0563f; --ok:#3f9b6b;
+  }
+  *{box-sizing:border-box}
+  body{margin:0;font:15px/1.5 -apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,"PingFang SC","Microsoft YaHei",sans-serif;
+       background:var(--bg);color:var(--ink);padding:24px}
+  .wrap{max-width:860px;margin:0 auto}
+  h1{font-size:22px;margin:0 0 4px}
+  .sub{color:var(--muted);margin:0 0 18px;font-size:13px}
+  .status{display:inline-flex;align-items:center;gap:6px;font-size:13px;padding:4px 10px;border-radius:999px;
+          background:#fff;border:1px solid var(--line)}
+  .dot{width:8px;height:8px;border-radius:50%;background:var(--muted)}
+  .dot.on{background:var(--ok)} .dot.off{background:var(--danger)}
+  .tabs{display:flex;gap:8px;margin:18px 0 14px;flex-wrap:wrap}
+  .tab{padding:8px 14px;border:1px solid var(--line);background:#fff;border-radius:10px;cursor:pointer;font-size:14px}
+  .tab.active{background:var(--ink);color:#fff;border-color:var(--ink)}
+  .drop{border:2px dashed var(--line);border-radius:14px;padding:28px;text-align:center;color:var(--muted);
+        background:var(--card);cursor:pointer;transition:.15s}
+  .drop.hot{border-color:var(--accent);color:var(--ink)}
+  .items{margin:16px 0;display:flex;flex-direction:column;gap:12px}
+  .item{display:flex;gap:14px;background:var(--card);border:1px solid var(--line);border-radius:14px;padding:12px}
+  .item img{width:84px;height:84px;object-fit:contain;border-radius:10px;background:#f3ece0;flex:0 0 auto}
+  .item .body{flex:1;min-width:0}
+  .item .name{font-weight:600;margin-bottom:6px}
+  .row{display:flex;gap:10px;flex-wrap:wrap;align-items:center}
+  .field{display:flex;flex-direction:column;font-size:12px;color:var(--muted);gap:3px}
+  .field input,.field select{border:1px solid var(--line);border-radius:8px;padding:6px 8px;font-size:14px;color:var(--ink);background:#fff}
+  .field input[type=number]{width:84px}
+  .x{border:none;background:none;color:var(--danger);cursor:pointer;font-size:18px;align-self:flex-start}
+  .bar{display:flex;gap:10px;align-items:center;margin-top:6px;flex-wrap:wrap}
+  .btn{border:none;border-radius:10px;padding:11px 18px;font-size:15px;cursor:pointer;background:var(--accent);color:#fff;font-weight:600}
+  .btn.ghost{background:#fff;color:var(--ink);border:1px solid var(--line);font-weight:500}
+  .btn:disabled{opacity:.45;cursor:not-allowed}
+  .quality{display:flex;align-items:center;gap:8px;font-size:13px;color:var(--muted)}
+  .log{margin-top:16px;background:#2b241c;color:#e9e2d6;border-radius:12px;padding:12px 14px;font:12.5px/1.55 ui-monospace,Menlo,Consolas,monospace;
+       white-space:pre-wrap;max-height:240px;overflow:auto;display:none}
+  .log.show{display:block}
+  .hint{font-size:12px;color:var(--muted);margin-top:6px}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <h1>🐾 Pawlaroid 素材提交台</h1>
+  <p class="sub">把 PNG 在浏览器内转成 WebP，自动配置进站点并执行 git 提交（默认 push 到 main，触发线上重新部署）。</p>
+  <div><span class="status"><span id="dot" class="dot"></span><span id="statustxt">检测服务中…</span></span></div>
+
+  <div class="tabs" id="tabs">
+    <div class="tab active" data-cat="sticker">贴纸</div>
+    <div class="tab" data-cat="tape">胶带</div>
+    <div class="tab" data-cat="frame">相纸</div>
+    <div class="tab" data-cat="background">背景</div>
+  </div>
+
+  <div class="drop" id="drop">点击或拖拽 PNG 到这里（可多选）</div>
+  <input type="file" id="file" accept="image/png,image/*" multiple hidden />
+
+  <div class="items" id="items"></div>
+
+  <div class="bar">
+    <button class="btn" id="submit" disabled>提交到仓库</button>
+    <button class="btn ghost" id="pack" disabled>离线转换并下载</button>
+    <div class="quality">WebP 质量
+      <input type="range" id="q" min="0.6" max="0.98" step="0.02" value="0.9" />
+      <span id="qv">0.90</span>
+    </div>
+  </div>
+  <p class="hint" id="hint"></p>
+
+  <div class="log" id="log"></div>
+</div>
+
+<script>
+const SERVER = location.origin;            // 同源（由 submit-server.py 托管时）
+let ONLINE = false;
+let CAT = 'sticker';
+const items = [];                          // {file,name,webp,meta,busy}
+
+const $ = s => document.querySelector(s);
+const dot = $('#dot'), statustxt = $('#statustxt');
+const itemsEl = $('#items'), submitBtn = $('#submit'), packBtn = $('#pack');
+
+function log(s){ const el=$('#log'); el.classList.add('show'); el.textContent += s+'\n'; el.scrollTop=el.scrollHeight; }
+
+/* ---- 服务探测 ---- */
+async function probe(){
+  try{
+    const r = await fetch(SERVER+'/api/status',{cache:'no-store'});
+    if(r.ok){ const j=await r.json(); ONLINE=true;
+      dot.className='dot on'; statustxt.textContent='服务在线 · 根='+j.root+' · 自动push='+(j.push?'是':'否');
+      $('#hint').textContent='在线模式：提交后会自动落盘 + 改配置 + git 提交'+(j.push?'并 push（线上同步更新）':'');
+    } else offline();
+  }catch(e){ offline(); }
+  refresh();
+}
+function offline(){
+  ONLINE=false; dot.className='dot off'; statustxt.textContent='未连接到提交服务（离线模式）';
+  $('#hint').textContent='离线模式：只能转换并下载 WebP + 生成配置片段，需手动运行 submit-server.py 后提交。';
+}
+
+/* ---- 类别切换 ---- */
+document.querySelectorAll('.tab').forEach(t=>t.onclick=()=>{
+  document.querySelectorAll('.tab').forEach(x=>x.classList.remove('active'));
+  t.classList.add('active'); CAT=t.dataset.cat; renderMetaHint();
+});
+function renderMetaHint(){ /* 占位：卡片内按类别渲染字段 */ }
+
+/* ---- 文件入队 + PNG→WebP ---- */
+$('#drop').onclick=()=>$('#file').click();
+$('#drop').ondragover=e=>{e.preventDefault();$('#drop').classList.add('hot');};
+$('#drop').ondragleave=()=>$('#drop').classList.remove('hot');
+$('#drop').ondrop=e=>{e.preventDefault();$('#drop').classList.remove('hot');addFiles(e.dataTransfer.files);};
+$('#file').onchange=e=>{addFiles(e.target.files);e.target.value='';};
+
+function addFiles(files){
+  [...files].forEach(f=>{
+    const it={file:f,name:f.name.replace(/\.[^.]+$/,''),webp:null,meta:defaultMeta(),busy:true};
+    items.push(it); renderItem(it); convert(it);
+  });
+  refresh();
+}
+function defaultMeta(){
+  if(CAT==='sticker') return {name:'',defaultSize:96,defaultScale:1,defaultRotation:0};
+  if(CAT==='tape')    return {name:'',size:80,wallTheme:['felt']};
+  if(CAT==='frame')   return {name:''};
+  if(CAT==='background') return {name:'',theme:'felt',accent:''};
+  return {name:''};
+}
+function convert(it){
+  const q=parseFloat($('#q').value);
+  const img=new Image();
+  img.onload=()=>{
+    let {width:w,height:h}=img; const max=1600;
+    if(Math.max(w,h)>max){ const k=max/Math.max(w,h); w=Math.round(w*k); h=Math.round(h*k); }
+    const c=document.createElement('canvas'); c.width=w; c.height=h;
+    c.getContext('2d').drawImage(img,0,0,w,h);
+    c.toBlob(b=>{ const r=new FileReader(); r.onload=()=>{ it.webp=r.result; it.busy=false; refresh(); }; r.readAsDataURL(b); },'image/webp',q);
+  };
+  img.src=URL.createObjectURL(it.file);
+}
+
+/* ---- 渲染卡片 ---- */
+function renderItem(it){
+  const idx=items.indexOf(it);
+  const card=document.createElement('div'); card.className='item'; card.dataset.idx=idx;
+  card.innerHTML=`<img><div class="body"><div class="name"></div><div class="row meta"></div></div><button class="x">×</button>`;
+  card.querySelector('img').src=URL.createObjectURL(it.file);
+  card.querySelector('.name').textContent=it.file.name;
+  card.querySelector('.x').onclick=()=>{ items.splice(idx,1); renderAll(); };
+  const metaEl=card.querySelector('.meta');
+  if(CAT==='sticker'){
+    metaEl.appendChild(f('名称',inp('text',it.meta,'name')));
+    metaEl.appendChild(f('默认大小(px)',inp('number',it.meta,'defaultSize')));
+    metaEl.appendChild(f('默认缩放',inp('number',it.meta,'defaultScale',0.1)));
+    metaEl.appendChild(f('默认旋转°',inp('number',it.meta,'defaultRotation')));
+  }else if(CAT==='tape'){
+    metaEl.appendChild(f('名称',inp('text',it.meta,'name')));
+    metaEl.appendChild(f('大小(px)',inp('number',it.meta,'size')));
+    metaEl.appendChild(f('适用主题',themeSel(it.meta)));
+  }else if(CAT==='frame'){
+    metaEl.appendChild(f('名称',inp('text',it.meta,'name')));
+  }else if(CAT==='background'){
+    metaEl.appendChild(f('名称',inp('text',it.meta,'name')));
+    metaEl.appendChild(f('基底主题',themeSel(it.meta,true)));
+    metaEl.appendChild(f('强调色(可选)',inp('text',it.meta,'accent')));
+  }
+  itemsEl.appendChild(card);
+}
+function f(label,input){ const d=document.createElement('label'); d.className='field'; d.textContent=label; d.appendChild(input); return d; }
+function inp(type,obj,key,step){ const i=document.createElement('input'); i.type=type; if(step)i.step=step; i.value=obj[key]??''; i.oninput=()=>obj[key]=type==='number'?parseFloat(i.value):i.value; return i; }
+function themeSel(obj,single){ const s=document.createElement('select');
+  [['felt','毛毡'],['cork','软木'],['fridge','冰箱磁贴']].forEach(([v,t])=>{const o=document.createElement('option');o.value=v;o.textContent=t;s.appendChild(o);});
+  s.value=Array.isArray(obj[single?'theme':'wallTheme'])?obj[single?'theme':'wallTheme'][0]:(obj[single?'theme':'wallTheme']||'felt');
+  s.onchange=()=>{ if(single) obj.theme=s.value; else obj.wallTheme=[s.value]; };
+  if(!single) obj.wallTheme=[s.value];
+  return s;
+}
+function renderAll(){ itemsEl.innerHTML=''; items.forEach(renderItem); refresh(); }
+
+/* ---- 提交 ---- */
+$('#q').oninput=()=>$('#qv').textContent=parseFloat($('#q').value).toFixed(2);
+async function submit(){
+  const ready=items.filter(i=>!i.busy && i.webp);
+  if(!ready.length){ log('没有可提交的素材（等待转换完成或先添加文件）。'); return; }
+  if(ready.some(i=>!(i.meta.name||'').trim())){ log('错误：每个素材都需要填写“名称”。'); return; }
+  const payload={category:CAT, items:ready.map(i=>({name:i.file.name, webp:i.webp, meta:i.meta}))};
+  submitBtn.disabled=true; log('提交中…');
+  try{
+    const r=await fetch(SERVER+'/submit',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(payload)});
+    const j=await r.json();
+    if(j.ok){ log('✅ 成功：'+JSON.stringify(j.added,null,0)); log('commit='+j.commit+'  pushed='+j.pushed); log('已修改：'+j.files.join(', '));
+      items.length=0; renderAll(); }
+    else log('❌ 服务端错误：'+j.error);
+  }catch(e){ log('❌ 网络错误：'+e.message+'（服务是否启动？）'); }
+  submitBtn.disabled=false;
+}
+
+/* ---- 离线打包 ---- */
+function pack(){
+  const ready=items.filter(i=>!i.busy && i.webp);
+  if(!ready.length){ log('没有可下载的素材。'); return; }
+  ready.forEach(i=>{
+    const a=document.createElement('a'); a.href=i.webp;
+    a.download=(i.meta.name||i.file.name.replace(/\.[^.]+$/,'')||'asset')+'.webp'; a.click();
+  });
+  const snippet=ready.map(i=>JSON.stringify(buildEntry(i),null,0)).join('\n');
+  log('已下载 '+ready.length+' 个 WebP。把以下条目追加到对应 config（胶带→pins.json，背景→themes.json 的 variants）：\n'+snippet);
+}
+function buildEntry(i){
+  const m=i.meta, rf=CAT==='tape'?'attachments/':'';
+  if(CAT==='sticker') return {id:(m.name||'x'),name:m.name,image:'stickers/'+m.name+'.webp',type:'sticker',defaultScale:m.defaultScale,defaultRotation:m.defaultRotation,defaultSize:m.defaultSize};
+  if(CAT==='tape') return {id:'tape_'+(m.name||'x'),name:m.name,type:'image',attachmentType:'tape',file:'attachments/'+m.name+'.webp',size:m.size,wallTheme:m.wallTheme};
+  if(CAT==='frame') return {name:m.name,thumbnail:'frames/'+m.name+'.webp',image:'frames/'+m.name+'.webp'};
+  return {name:m.name,file:'backgrounds/'+m.name+'.webp',theme:m.theme,accent:m.accent};
+}
+
+/* ---- 状态 ---- */
+function refresh(){
+  const ready=items.filter(i=>!i.busy && i.webp).length;
+  submitBtn.disabled=!ONLINE || !ready;
+  packBtn.disabled=!ready;
+}
+submitBtn.onclick=submit; packBtn.onclick=pack;
+probe();
+</script>
+</body>
+</html>
