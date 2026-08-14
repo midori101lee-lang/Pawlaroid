@@ -2267,14 +2267,17 @@ body {
     user-select: none;
     -webkit-user-select: none;
 }
+/* Layer 1 背景：背景图由 wall.js 按主题注入（CSS 变量 --wall-bg-image 兜底），
+   默认仍指向原 wall-bg.webp，保证旧数据/首屏不闪白 */
 .wall-bg {
     position: absolute;
     inset: 0;
-    background-image: url('../assets/backgrounds/wall-bg.webp');
+    background-image: var(--wall-bg-image, url('../assets/backgrounds/wall-bg.webp'));
     background-size: cover;       /* 铺满展示区 */
     background-position: center;
     background-repeat: no-repeat;
     z-index: 0;
+    transition: background-image 0.35s ease;
 }
 
 /* 拍立得 / 贴纸 / 图钉 通用 item */
@@ -2359,6 +2362,10 @@ body {
     pointer-events: none;
     z-index: 2;
 }
+/* 软木墙=木纽扣固定：照片顶部中央留出装饰元素空间，弱化图钉高光 */
+.wall-item.type-polaroid.att-button.pinned { box-shadow: 0 8px 18px rgba(120,80,40,0.22); }
+/* 冰箱磁贴墙=磁铁固定：更干净轻盈的投影，贴合白色冰箱表面 */
+.wall-item.type-polaroid.att-magnet.pinned { box-shadow: 0 6px 16px rgba(40,70,110,0.18); }
 
 /* ============ 首次固定引导 ============ */
 /* 未固定照片：虚线描边 + “未固定”角标，提示用户需要图钉 */
@@ -2640,6 +2647,77 @@ body {
     justify-content: center;
 }
 .wall-note-list .wall-note-swatch span { font-size: 12px; }
+
+/* ============ 回忆墙主题：按钮 / 面板 / 主题卡 / 花色变体 ============ */
+.wall-theme-btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    margin-left: auto;
+    padding: 5px 10px;
+    border: none;
+    border-radius: 14px;
+    background: rgba(255,248,238,0.85);
+    color: #6B4A2E;
+    font-size: 12.5px;
+    font-weight: 700;
+    font-family: inherit;
+    box-shadow: 0 2px 6px rgba(120,80,40,0.18);
+    cursor: pointer;
+}
+.wall-theme-btn:active { transform: scale(0.96); }
+.wall-theme-ico { font-size: 14px; }
+
+/* 主题面板复用 .wall-panel，这里只补充内部排布 */
+.wall-theme-panel { max-height: 64vh; overflow-y: auto; -webkit-overflow-scrolling: touch; }
+.wall-theme-list {
+    display: grid;
+    grid-template-columns: 1fr;
+    gap: 8px;
+    padding: 4px 2px 10px;
+}
+.wall-theme-card {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 12px 12px;
+    border: 2px solid transparent;
+    border-radius: 14px;
+    background: #fff7ec;
+    cursor: pointer;
+    font-family: inherit;
+    transition: border-color 0.2s, background 0.2s, transform 0.12s;
+}
+.wall-theme-card:active { transform: scale(0.98); }
+.wall-theme-card.active {
+    border-color: #ffb877;
+    background: #fff1dd;
+    box-shadow: 0 4px 12px rgba(255,150,80,0.22);
+}
+.wall-theme-ico { font-size: 22px; line-height: 1; }
+.wall-theme-name { font-size: 14px; font-weight: 700; color: #6B4A2E; }
+
+.wall-theme-variant-row {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+    padding: 4px 2px 6px;
+}
+.wall-theme-variant {
+    min-width: 60px;
+    padding: 8px 10px;
+    border: 2px solid transparent;
+    border-radius: 12px;
+    background: #fff7ec;
+    cursor: pointer;
+    font-family: inherit;
+    font-size: 11.5px;
+    color: #6B4A2E;
+    font-weight: 600;
+    transition: border-color 0.2s, transform 0.12s;
+}
+.wall-theme-variant:active { transform: scale(0.96); }
+.wall-theme-variant.active { border-color: #ffb877; background: #fff1dd; }
 
 .wall-note-display {
     font-family: "PingFang SC", "STKaiti", "KaiTi", "Noto Sans CJK SC", sans-serif;

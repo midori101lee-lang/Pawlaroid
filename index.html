@@ -465,7 +465,10 @@
                 </svg>
             </button>
             <span class="page-title">我的回忆墙</span>
-            <span class="wall-header-tip">🐾 拖动布置</span>
+            <button class="wall-theme-btn" id="wallBtnTheme" aria-label="回忆墙主题">
+                <span class="wall-theme-ico">🎨</span>
+                <span class="wall-theme-label" id="wallThemeLabel">毛毡照片板</span>
+            </button>
             <button class="wall-export-btn" onclick="Exporter.exportWall()">🧸 保存展示墙</button>
         </div>
 
@@ -490,8 +493,8 @@
             </div>
 
             <div class="wall-panel-section">
-                <div class="wall-panel-section-title">📌 固定回忆</div>
-                <div class="wall-panel-section-hint">选一枚图钉，<strong>拖到照片上</strong>把它固定在墙上 📌（固定后将不能自由拖动）</div>
+                <div class="wall-panel-section-title wall-pin-title">📌 固定回忆</div>
+                <div class="wall-panel-section-hint wall-pin-hint">选一枚图钉，<strong>拖到照片上</strong>把它固定在墙上 📌（固定后将不能自由拖动）</div>
                 <div class="wall-panel-list wall-pin-list"></div>
             </div>
 
@@ -499,6 +502,15 @@
                 <div class="wall-panel-section-title">📝 小纸条</div>
                 <div class="wall-panel-list wall-note-list"></div>
             </div>
+        </div>
+
+        <!-- 回忆墙主题面板：切换 🎨毛毡 / 🌰软木 / 🧲冰箱，并选择花色变体 -->
+        <div class="wall-panel wall-theme-panel" id="wallThemePanel">
+            <div class="wall-panel-head">
+                <span>🎨 回忆墙主题</span>
+            </div>
+            <div class="wall-panel-list wall-theme-list" id="wallThemeList"></div>
+            <div class="wall-panel-section wall-theme-variants" id="wallThemeVariants"></div>
         </div>
 
         <!-- Layer 5 浮动工具（默认隐藏，点击 🐾 展开） -->
@@ -692,6 +704,9 @@
     <!-- 展示墙：贴纸 / 图钉清单（file:// 友好，用 window.PAW_* 注入）与独立模块 -->
     <script src="./stickers/stickers.js"></script>
     <script src="./pins/pins.js"></script>
+    <script src="./pins/buttons.js"></script>
+    <script src="./pins/magnets.js"></script>
+    <script src="./wall-themes/wall-themes.js"></script>
     <script src="js/wall.js"></script>
     <!-- 视觉资产统一配置（标题图片路径集中管理，先于时光机加载） -->
     <script src="js/assets.js"></script>

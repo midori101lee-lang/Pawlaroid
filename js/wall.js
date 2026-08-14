@@ -35,6 +35,12 @@ const Wall = {
     pinTipEl: null,
     tipTimer: null,
 
+    /* 展示墙主题：当前选中的主题与花色变体（持久化在 localStorage） */
+    themeId: 'felt',
+    themeVariant: 'cream',
+    themes: null,            // 主题配置数组（window.PAW_WALL_THEMES / 远程 JSON）
+    THEME_KEY: 'pawlaroid_wall_theme',
+
     /* 各类元素基础显示尺寸（px），scale 在此基础上倍增 */
     BASE: { polaroid: 196, sticker: 90, pin: 56, note: 184 },
 
@@ -61,6 +67,10 @@ const Wall = {
         }
         // 预加载贴纸配置（http 下 fetch stickers.json；file:// 下回退注入数组）
         this._loadStickerConfig();
+        // 主题配置 + 背景应用（http 下 fetch 远程 JSON；file:// 下回退 window.PAW_WALL_THEMES）
+        this._loadThemeConfig().then(() => {
+            this._applyTheme(this.themeId, this.themeVariant, false);
+        });
         this._render();
         // 首次进入展示墙：若有未固定照片，给出“用图钉固定回忆”的轻引导
         this._maybeShowPinTip();
@@ -74,6 +84,9 @@ const Wall = {
         const menu = document.getElementById('wallFabMenu');
         if (stickerBtn) stickerBtn.addEventListener('click', () => this._togglePanel('sticker'));
         if (toolBtn) toolBtn.addEventListener('click', () => this._togglePanel('tool'));
+        // 主题按钮：展开/收起「回忆墙主题」面板
+        const themeBtn = document.getElementById('wallBtnTheme');
+        if (themeBtn) themeBtn.addEventListener('click', () => this._togglePanel('theme'));
         // 🐾 浮动按钮：若面板已展开，再次点击即收起；否则展开工具菜单
         if (fab) {
             fab.addEventListener('click', () => {
@@ -178,34 +191,52 @@ const Wall = {
         if (!this.stickerPanel || !this.toolPanel) return;
         const stickerOpen = this.stickerPanel.classList.contains('open');
         const toolOpen = this.toolPanel.classList.contains('open');
+        const themePanel = document.getElementById('wallThemePanel');
+        const themeOpen = themePanel ? themePanel.classList.contains('open') : false;
         let showSticker = stickerOpen;
         let showTool = toolOpen;
-        if (which === 'sticker') { showSticker = !stickerOpen; showTool = false; }
-        else if (which === 'tool') { showTool = !toolOpen; showSticker = false; }
-        else { showSticker = false; showTool = false; }
+        let showTheme = themeOpen;
+        if (which === 'sticker') { showSticker = !stickerOpen; showTool = false; showTheme = false; }
+        else if (which === 'tool') { showTool = !toolOpen; showSticker = false; showTheme = false; }
+        else if (which === 'theme') { showTheme = !themeOpen; showSticker = false; showTool = false; }
+        else { showSticker = false; showTool = false; showTheme = false; }
         this.stickerPanel.classList.toggle('open', showSticker);
         this.toolPanel.classList.toggle('open', showTool);
+        if (themePanel) themePanel.classList.toggle('open', showTheme);
         // 展开选择面板时收起浮动工具菜单，避免遮挡
         const menu = document.getElementById('wallFabMenu');
         if (menu) menu.classList.remove('open');
         if (showSticker) this._fillStickers();
         if (showTool) this._fillTool();
+        if (showTheme) this._fillTheme();
     },
 
-    /* 工具箱面板：图钉（颜色选择）+ 小纸条（颜色选择），二者分类展示 */
+    /* 工具箱面板：固定装饰（图钉/纽扣/磁铁，由主题决定）+ 小纸条，二者分类展示 */
     _fillTool() {
         if (!this.toolPanel) return;
-        // 图钉：从 window.PAW_PINS 渲染颜色列表
+        const theme = this._getTheme();
+        const att = theme ? theme.attachment : 'pin';
+        // 固定装饰：根据当前主题的装饰集渲染（图钉 / 纽扣 / 磁铁）
         const pinBox = this.toolPanel.querySelector('.wall-pin-list');
         if (pinBox) {
             pinBox.innerHTML = '';
-            (window.PAW_PINS || []).forEach(p => {
+            const decor = this._getDecorSet();
+            decor.forEach(p => {
                 const el = document.createElement('button');
                 el.className = 'wall-panel-item';
                 el.innerHTML = `<img src="${p.file}" alt="${p.name}"><span>${p.name}</span>`;
                 el.addEventListener('click', () => this._addDecor('pin', p));
                 pinBox.appendChild(el);
             });
+            // 动态标题 / 提示文案（图钉 vs 纽扣 vs 磁铁）
+            const titleEl = this.toolPanel.querySelector('.wall-pin-title');
+            const hintEl = this.toolPanel.querySelector('.wall-pin-hint');
+            if (titleEl) titleEl.textContent = (att === 'magnet') ? '🧲 磁铁固定' : (att === 'button' ? '🧷 纽扣固定' : '📌 固定回忆');
+            if (hintEl) {
+                const noun = (att === 'magnet') ? '磁铁' : (att === 'button' ? '纽扣' : '图钉');
+                const ico = (att === 'magnet') ? '🧲' : '📌';
+                hintEl.innerHTML = `选一枚${noun}，<strong>拖到照片上</strong>把它固定在墙上${ico}（固定后将不能自由拖动）`;
+            }
         }
         // 小纸条：三色色卡，点击即新增对应颜色纸条
         const noteBox = this.toolPanel.querySelector('.wall-note-list');
@@ -218,6 +249,134 @@ const Wall = {
                 el.addEventListener('click', () => this.addNote(key));
                 noteBox.appendChild(el);
             });
+        }
+    },
+
+    /* ---------- 主题系统 ---------- */
+
+    /* 读取主题配置：http 下优先 fetch 远程 JSON（改 JSON 即生效），否则回退 window.PAW_WALL_THEMES（file:// 友好） */
+    async _loadThemeConfig() {
+        let arr = (window.PAW_WALL_THEMES || []).slice();
+        if (typeof location !== 'undefined' &&
+            (location.protocol === 'http:' || location.protocol === 'https:')) {
+            try {
+                const res = await fetch('wall-themes/wall-themes.json', { cache: 'no-store' });
+                if (res.ok) {
+                    const json = await res.json();
+                    if (Array.isArray(json) && json.length) arr = json;
+                }
+            } catch (e) { /* 离线 / file:// → 使用注入的 window.PAW_WALL_THEMES */ }
+        }
+        this.themes = arr;
+        // 恢复上次选择的主题（持久化）
+        try {
+            const saved = JSON.parse(localStorage.getItem(this.THEME_KEY) || 'null');
+            if (saved && saved.theme && this._getTheme(saved.theme)) {
+                this.themeId = saved.theme;
+                this.themeVariant = (saved.variant && this._getVariant(this.themeId, saved.variant)) ? saved.variant : this._getTheme(this.themeId).defaultVariant;
+            }
+        } catch (e) {}
+        if (!this._getTheme(this.themeId)) this.themeId = arr.length ? arr[0].id : 'felt';
+        if (!this._getVariant(this.themeId, this.themeVariant)) {
+            const t = this._getTheme(this.themeId);
+            this.themeVariant = t ? t.defaultVariant : 'cream';
+        }
+        return arr;
+    },
+
+    _getTheme(id) {
+        id = id || this.themeId;
+        return (this.themes || []).find(t => t.id === id) || null;
+    },
+    _getVariant(themeId, vid) {
+        const t = this._getTheme(themeId);
+        if (!t) return null;
+        return (t.variants || []).find(v => v.id === (vid || this.themeVariant)) || null;
+    },
+    /* 当前主题的装饰集（返回 window.PAW_PINS / PAW_BUTTONS / PAW_MAGNETS） */
+    _getDecorSet() {
+        const t = this._getTheme();
+        const set = t ? t.decorSet : 'pins';
+        if (set === 'buttons') return (window.PAW_BUTTONS || []);
+        if (set === 'magnets') return (window.PAW_MAGNETS || []);
+        return (window.PAW_PINS || []);
+    },
+
+    /* 渲染主题选择面板：三张主题卡 + 当前主题的花色变体 */
+    _fillTheme() {
+        const list = document.getElementById('wallThemeList');
+        const varBox = document.getElementById('wallThemeVariants');
+        if (!list || !this.themes) return;
+        list.innerHTML = '';
+        this.themes.forEach(t => {
+            const el = document.createElement('button');
+            el.className = 'wall-theme-card' + (t.id === this.themeId ? ' active' : '');
+            el.innerHTML = `<span class="wall-theme-ico">${t.icon}</span><span class="wall-theme-name">${t.name}</span>`;
+            el.addEventListener('click', () => {
+                this._applyTheme(t.id, this._getTheme(t.id).defaultVariant, true);
+                this._fillTheme();
+            });
+            list.appendChild(el);
+        });
+        if (varBox) {
+            varBox.innerHTML = '';
+            const t = this._getTheme();
+            const vTitle = document.createElement('div');
+            vTitle.className = 'wall-panel-section-title';
+            vTitle.textContent = '花色';
+            varBox.appendChild(vTitle);
+            const row = document.createElement('div');
+            row.className = 'wall-theme-variant-row';
+            (t.variants || []).forEach(v => {
+                const b = document.createElement('button');
+                b.className = 'wall-theme-variant' + (v.id === this.themeVariant ? ' active' : '');
+                b.title = v.name;
+                b.style.background = v.overlay ? v.overlay.split(',')[0].replace('linear-gradient(180deg, ', '').replace(')', '') : '#eee';
+                b.innerHTML = `<span>${v.name}</span>`;
+                b.addEventListener('click', () => {
+                    this._applyTheme(this.themeId, v.id, true);
+                    this._fillTheme();
+                });
+                row.appendChild(b);
+            });
+            varBox.appendChild(row);
+        }
+    },
+
+    /* 应用主题：切换背景图（CSS 变量）+ 固定方式 + 装饰集 + 持久化 + 刷新工具栏 */
+    _applyTheme(themeId, variantId, persist) {
+        const t = this._getTheme(themeId);
+        if (!t) return;
+        const v = this._getVariant(themeId, variantId) || t.variants[0];
+        this.themeId = themeId;
+        this.themeVariant = v.id;
+
+        const ac = window.ASSET_CONFIG;
+        const bgUrl = ac && ac.resolve ? ac.resolve(v.file) : ('assets/' + v.file);
+        const bgEl = this.stage ? this.stage.querySelector('.wall-bg') : null;
+        if (bgEl) {
+            // 背景图层 = 主题花色叠层（柔和 tint）+ 背景图，营造空间感
+            bgEl.style.backgroundImage = (v.overlay ? v.overlay + ', ' : '') + `url("${bgUrl}")`;
+            bgEl.style.backgroundSize = 'cover, cover';
+            bgEl.style.backgroundPosition = 'center, center';
+            bgEl.style.backgroundRepeat = 'no-repeat, no-repeat';
+        }
+        // 阶段 data-theme，供主题特异样式（如冰箱更干净的阴影）
+        if (this.stage) this.stage.dataset.theme = themeId;
+
+        // 导出按主题取背景：同步覆盖 window.PAW_WALL_BG（exporter 默认读取它）
+        this.themeBg = bgUrl;
+        window.PAW_WALL_BG = bgUrl;
+
+        // 主题按钮文案 + 工具栏（装饰集随主题切换）
+        const label = document.getElementById('wallThemeLabel');
+        if (label) label.textContent = t.name;
+        if (this.toolPanel && this.toolPanel.classList.contains('open')) this._fillTool();
+
+        // 若当前有固定装饰，重渲染使其 attachmentType 与主题一致（仅视觉；数据已按各自类型保存）
+        if (persist) {
+            try { localStorage.setItem(this.THEME_KEY, JSON.stringify({ theme: themeId, variant: v.id })); } catch (e) {}
+            this._toast(`已切换到「${t.name}」· ${v.name}`);
         }
     },
 
@@ -508,6 +667,7 @@ const Wall = {
             if (it.attachmentType) cls += ' att-' + it.attachmentType;  // 固定方式视觉（att-pin / att-magnet…）
         }
         if (it.type === 'pin' && it.pinnedTo) cls += ' pin-attached';     // 已吸附到照片
+        if (it.type === 'pin' && it.attachmentType) cls += ' att-' + it.attachmentType;  // 装饰类型视觉（att-pin / att-magnet…）
         el.className = cls;
         el.dataset.id = it.id;
         const base = it.baseSize || this.BASE[it.type] || 120;

@@ -269,9 +269,11 @@ const Exporter = {
         canvas.width = W; canvas.height = H;
         const ctx = canvas.getContext('2d');
 
-        // 背景
-        if (window.PAW_WALL_BG) {
-            try { const bg = await this._loadImage(window.PAW_WALL_BG); this._drawCover(ctx, bg, W, H); }
+        // 背景：优先使用展示墙当前主题背景（Wall.themeBg / window.PAW_WALL_BG，由 wall.js 按主题注入），
+        // 失败则回退默认背景，再回退程序化毛毡色块，保证导出永不空白。
+        const bgSrc = (typeof Wall !== 'undefined' && Wall.themeBg) || window.PAW_WALL_BG || '';
+        if (bgSrc) {
+            try { const bg = await this._loadImage(bgSrc); this._drawCover(ctx, bg, W, H); }
             catch (e) { this._drawFelt(ctx, W, H); }
         } else { this._drawFelt(ctx, W, H); }
 

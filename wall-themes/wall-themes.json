@@ -1,0 +1,37 @@
+[
+  {
+    "id": "felt",
+    "name": "毛毡照片板",
+    "icon": "🎨",
+    "attachment": "pin",
+    "decorSet": "pins",
+    "defaultVariant": "cream",
+    "variants": [
+      { "id": "cream", "name": "奶油白", "file": "backgrounds/felt-cream.webp", "overlay": "linear-gradient(180deg, rgba(255,252,245,0.10), rgba(238,222,194,0.22))", "accent": "#E2A35B", "titleColor": "#6B4A2E" },
+      { "id": "sage", "name": "鼠尾草绿", "file": "backgrounds/felt-sage.webp", "overlay": "linear-gradient(180deg, rgba(232,240,225,0.10), rgba(176,192,160,0.26))", "accent": "#7FA079", "titleColor": "#3F5A3C" },
+      { "id": "misty", "name": "雾霾蓝-樱花粉", "file": "backgrounds/felt-misty.webp", "overlay": "linear-gradient(180deg, rgba(224,232,240,0.08), rgba(205,180,200,0.24))", "accent": "#8AA0BC", "titleColor": "#3F4E63" }
+    ]
+  },
+  {
+    "id": "cork",
+    "name": "软木照片墙",
+    "icon": "🌰",
+    "attachment": "button",
+    "decorSet": "buttons",
+    "defaultVariant": "cream",
+    "variants": [
+      { "id": "cream", "name": "奶油木纽扣", "file": "backgrounds/cork.webp", "overlay": "linear-gradient(180deg, rgba(255,248,236,0.06), rgba(150,105,60,0.20))", "accent": "#A8763A", "titleColor": "#6B4723" }
+    ]
+  },
+  {
+    "id": "fridge",
+    "name": "冰箱磁贴墙",
+    "icon": "🧲",
+    "attachment": "magnet",
+    "decorSet": "magnets",
+    "defaultVariant": "cream",
+    "variants": [
+      { "id": "cream", "name": "糖果磁铁", "file": "backgrounds/fridge.webp", "overlay": "linear-gradient(180deg, rgba(255,255,255,0.04), rgba(210,225,235,0.18))", "accent": "#5C97F4", "titleColor": "#3A5E8C" }
+    ]
+  }
+]
