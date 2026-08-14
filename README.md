@@ -142,8 +142,25 @@ Pawlaroid 采用 **「代码 + 视觉资产全部随仓库公开」** 的极简�
 全部原创素材（6 款相框 / 9 款贴纸 / 展示墙背景 / 时光机标题 / 首页主视觉）均随仓库提交，
 由 Cloudflare Pages 与页面同源托管，打开即玩、无远程依赖、无占位降级、无 404。
 
-**新增素材**：把 WebP 放进 `assets/` 对应子目录，在 `frames/frames.json` 或 `stickers/stickers.json`
-（及对应的 `frames/frames.js` / `stickers/stickers.js` 兜底）加一行即可，无需改动合成 / 展示墙 / 导出逻辑。
+**新增素材（推荐：提交系统）**：运行本地提交服务后打开 `tools/submit.html`，拖入 PNG 即自动转 WebP 并配置进站点：
+
+```bash
+python3 tools/submit-server.py        # 默认 :8731，自动 push 到 main（触发 Pages 重新部署）
+# 浏览器打开 http://localhost:8731/  →  选类别（贴纸/胶带/相纸/背景）→ 填元数据 → 提交
+```
+
+四类素材的落点：
+
+| 类别 | WebP 落盘 | 配置追加 |
+| --- | --- | --- |
+| 贴纸 | `assets/stickers/` | `assets/config/stickers.json` |
+| 胶带（固定件） | `assets/attachments/` | `assets/config/pins.json`（以 `type:"image", attachmentType:"tape"` 条目落地） |
+| 相纸 | `assets/frames/` | `assets/config/frames.json` |
+| 背景 | `assets/backgrounds/` | `assets/config/themes.json`（作为所选主题的 `variants` 花色变体，自动继承 overlay/accent/titleColor） |
+
+服务会自动：① 存 WebP（绝不留 PNG，规避 `.gitignore` 且保证同源）；② 追加对应 `.json`；③ 同步重生成 file:// 兜底脚本 `assets/config/*.js`；④ `git add/commit/push`。
+
+**手动新增**（不使用工具时）：把 WebP 放进 `assets/` 对应子目录，在 `assets/config/*.json` 加一行，**同时**更新同名 `assets/config/*.js` 兜底（二者必须同步，否则 `file://` 离线副本会缺素材）；无需改动合成 / 展示墙 / 导出逻辑。
 
 合成 / 展示墙 / 导出算法**不变**，所有图片经 `js/assetConfig.js` 的 `resolve()` 以相对路径（`assets/`）加载，同源不污染 canvas。
 
@@ -165,7 +182,7 @@ Please do not redistribute or reuse these assets in other projects without permi
 - 字体：Caveat / Long Cang / Ma Shan Zheng / ZCOOL KuaiLe，均 SIL OFL 1.1，可随仓库使用。
 
 所有图片均经 `js/assetConfig.js` 以相对路径（`assets/`）加载。你可以按仓库结构替换为自己的素材
-（相纸 / 贴纸通过 `frames/`、`stickers/` 配置即可扩展）。
+（相纸 / 贴纸 / 固定件 / 背景均通过 `assets/config/` 下的配置即可扩展，或用 `tools/submit.html` 提交）。
 
 ---
 
