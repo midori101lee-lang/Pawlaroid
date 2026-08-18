@@ -1000,22 +1000,23 @@ const App = {
             const canvas = await this.buildFinalPolaroid();
             if (canvas) {
                 const url = this._downsample(canvas, this.STORE_MAX);
-                this._recordMemory(url, true);   // 已自动上墙 → onWall=true
+                // 生成完成【不再】自动写入 memory / 展示墙：仅暂存 dataURL，停留在结果页。
+                // 用户显式点击「保存到时光机」(sendToTimemachine) 或「添加到展示墙」
+                // (sendToWall/addToWall) 时才各自落库，保证两者数据互不串门
+                // （修复：同一拍立得同时出现在时光机与展示墙的混淆问题；
+                //   同时避免生成瞬间用空 note 写库，导致时光机显示空白小记）。
                 this.state.lastPolaroidDataURL = url;
-                if (typeof Wall !== 'undefined') Wall.addPolaroid(this.state.currentMemoryId, url);
             }
         } catch (e) {
             // 极端环境兜底：某些浏览器在 file:// 下把相框合成到 canvas 后会“污染画布”，
-            // 导致 toDataURL() 抛 SecurityError 而整段记忆创建中断（时光机/展示墙全空）。
-            // 降级为“纯照片”（processedCanvas 来自用户上传的 dataURI，永不污染）记录，
-            // 保证时光机 / 展示墙至少有内容，而不是整页空白。
+            // 导致 toDataURL() 抛 SecurityError。降级为“纯照片”（processedCanvas 来自
+            // 用户上传的 dataURI，永不污染）暂存 dataURL，不在此自动落库
+            // （落库交给用户显式点击的保存按钮，逻辑一致）。
             try {
                 const url = this._downsample(this.state.processedCanvas, this.STORE_MAX);
                 if (url) {
-                    this._recordMemory(url, true);
                     this.state.lastPolaroidDataURL = url;
-                    if (typeof Wall !== 'undefined') Wall.addPolaroid(this.state.currentMemoryId, url);
-                    console.warn('[Result] 相框合成失败，已降级为纯照片记录', e && e.message);
+                    console.warn('[Result] 相框合成失败，已降级为纯照片暂存', e && e.message);
                 }
             } catch (_) {
                 console.warn('[Result] 记录回忆失败（不影响页面展示）', e);
@@ -1607,8 +1608,7 @@ const App = {
         if (!canvas) { this.toast('请先生成照片'); return; }
         const url = this._downsample(canvas, this.STORE_MAX);
         this.state.lastPolaroidDataURL = url;
-        // 同时记一条回忆（标记已上墙），让时光机与展示墙数据互通
-        this._recordMemory(url, true);
+        // 仅写入展示墙（wall item），不碰 memory —— 时光机与展示墙数据隔离
         if (typeof Wall !== 'undefined') {
             Wall.addPolaroid(this.state.currentMemoryId, url);
             this.goWall();
@@ -1681,8 +1681,7 @@ const App = {
             url = small.toDataURL('image/png');
         }
         this.state.lastPolaroidDataURL = url;
-        // 增量记录到时光机（贴墙即保留这一刻，并标记已上墙）
-        this._recordMemory(url, true);
+        // 仅写入展示墙（wall item），不碰 memory —— 时光机与展示墙数据隔离
         if (typeof Wall !== 'undefined') {
             Wall.addPolaroid(this.state.currentMemoryId, url);
             this.goWall();

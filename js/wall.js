@@ -1114,7 +1114,6 @@ const Wall = {
     _bindWallSwitch() {
         const btn = document.getElementById('wallSwitchBtn');
         const menu = document.getElementById('wallSwitchMenu');
-        const renameBtn = document.getElementById('wallRenameBtn');
         const newBtn = document.getElementById('wallSwitchNew');
         const capNew = document.getElementById('wallCapacityNew');
         const modalMask = document.getElementById('wallModalMask');
@@ -1124,7 +1123,6 @@ const Wall = {
         const modalTitle = document.getElementById('wallModalTitle');
 
         if (btn && menu) btn.addEventListener('click', (e) => { e.stopPropagation(); this._toggleSwitchMenu(); });
-        if (renameBtn) renameBtn.addEventListener('click', (e) => { e.stopPropagation(); this.openWallModal('rename'); });
         if (newBtn) newBtn.addEventListener('click', () => { this._closeSwitchMenu(); this.openWallModal('new'); });
         if (capNew) capNew.addEventListener('click', () => this.openWallModal('new'));
         // 点击空白处关闭下拉
@@ -1167,11 +1165,28 @@ const Wall = {
         if (!listEl) return;
         listEl.innerHTML = '';
         this.walls.forEach(w => {
-            const item = document.createElement('button');
-            item.className = 'wall-switch-item' + (w.id === this.currentWallId ? ' active' : '');
-            item.innerHTML = `<span class="wall-switch-item-name">${this._escapeHtml(w.name)}</span>` +
-                `<span class="wall-switch-item-count">${(w.items || []).length}</span>`;
-            item.addEventListener('click', () => { this._closeSwitchMenu(); this.switchWall(w.id); });
+            const item = document.createElement('div');
+            const isCur = w.id === this.currentWallId;
+            item.className = 'wall-switch-item' + (isCur ? ' active' : '');
+            // 当前墙：名字直接用 input 可编辑（失焦/回车即保存），无需额外按钮
+            if (isCur) {
+                item.innerHTML = `<input class="wall-switch-item-input" value="${this._escapeHtml(w.name)}" maxlength="20" aria-label="编辑墙名" />` +
+                    `<span class="wall-switch-item-count">${(w.items || []).length}</span>`;
+                const input = item.querySelector('.wall-switch-item-input');
+                if (input) {
+                    const commit = () => {
+                        const val = (input.value || '').trim();
+                        if (val && val !== w.name) this.renameWall(w.id, val);
+                    };
+                    input.addEventListener('blur', commit);
+                    input.addEventListener('keydown', (e) => { if (e.key === 'Enter') { e.preventDefault(); input.blur(); } });
+                    setTimeout(() => { try { input.select(); } catch (_) {} }, 0);
+                }
+            } else {
+                item.innerHTML = `<span class="wall-switch-item-name">${this._escapeHtml(w.name)}</span>` +
+                    `<span class="wall-switch-item-count">${(w.items || []).length}</span>`;
+                item.addEventListener('click', () => { this._closeSwitchMenu(); this.switchWall(w.id); });
+            }
             listEl.appendChild(item);
         });
     },

@@ -2233,6 +2233,15 @@ body {
 .wall-switch-item:hover { background: #f6efe2; }
 .wall-switch-item.active { background: #fbeede; font-weight: 700; color: #6D4A33; }
 .wall-switch-item-name { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+/* 当前墙名直接可编辑的 input（无需单独改名按钮） */
+.wall-switch-item-input {
+    flex: 1; min-width: 0;
+    border: 1px solid #e2b483; border-radius: 6px;
+    background: #fff;
+    padding: 2px 6px; font-size: 14px; font-weight: 700; color: #6D4A33;
+    font-family: inherit; outline: none;
+}
+.wall-switch-item-input:focus { border-color: #c07a2e; box-shadow: 0 0 0 2px rgba(192,122,46,0.15); }
 .wall-switch-item-count {
     flex: none; font-size: 12px; color: #b08a5e; background: #f3ece0;
     border-radius: 999px; padding: 1px 8px; min-width: 22px; text-align: center;
@@ -2265,17 +2274,18 @@ body {
         width: 30px; height: 30px;
         font-size: 13px;
     }
-    /* 主题按钮：移动端只留 🎨 图标，去掉"毛毡照片板/软木照片墙/冰箱磁贴墙"长标签 */
+    /* 主题按钮：移动端改为胶囊形，🎨 + "墙纸"文字，让用户明白这是换墙纸入口 */
     .wall-theme-btn {
         margin-left: 0;
-        padding: 5px 7px;
-        gap: 0;
-        border-radius: 50%;
-        width: 30px; height: 30px;
+        padding: 5px 10px;
+        gap: 3px;
+        border-radius: 16px;
+        width: auto; height: 30px;
         justify-content: center;
     }
     .wall-theme-btn .wall-theme-label,
     .wall-theme-btn .wall-theme-ico + .wall-theme-label { display: none; }
+    .wall-theme-btn .wall-theme-hint { display: inline; font-size: 12px; font-weight: 600; }
     .wall-theme-btn .wall-theme-ico { font-size: 15px; }
     /* 导出按钮：缩小 padding + 字号，但保留"导出回忆"可读文案 */
     .wall-export-btn {
@@ -2843,6 +2853,7 @@ body {
 }
 .wall-theme-btn:active { transform: scale(0.96); }
 .wall-theme-ico { font-size: 14px; }
+.wall-theme-hint { display: none; }   /* 桌面端用主题名 label，移动端用"墙纸"hint */
 
 /* 主题面板复用 .wall-panel，这里只补充内部排布 */
 .wall-theme-panel { max-height: 64vh; overflow-y: auto; -webkit-overflow-scrolling: touch; }
