@@ -1101,7 +1101,10 @@ const App = {
      */
     applyTransformToOverlay(overlay, container) {
         if (!overlay || !container) return;
-        const d = (container.clientWidth || 280) / Polaroid.FRAME_WIDTH; // 屏幕 px / 原生 px
+        // 屏幕 px / 原生 px：用裁剪后画布宽（与 buildFinalPolaroid 一致），
+        // 而非 FRAME_WIDTH，避免签名偏移在预览与导出间被放大/缩小。
+        const cropped = Polaroid.getCroppedSize ? Polaroid.getCroppedSize() : { width: Polaroid.FRAME_WIDTH };
+        const d = (container.clientWidth || 280) / cropped.width;
         const t = this.state.hwTransform;
         overlay.style.transformOrigin = '50% 50%';
         overlay.style.transform =
@@ -1240,9 +1243,11 @@ const App = {
         );
 
         // 2) 手写图层（快照图片按 100% 落到默认签名区尺寸，变换由 CSS transform 控制）
-        this._hw.d = cw / Polaroid.FRAME_WIDTH;
-        const layerW = cw * (Polaroid.SIG_W / Polaroid.FRAME_WIDTH);
-        const layerH = cw * (Polaroid.SIG_H / Polaroid.FRAME_HEIGHT);
+        // 用裁剪后画布宽（与导出一致），保证拖拽偏移/缩放与最终合成 1:1 对应。
+        const cropped = Polaroid.getCroppedSize ? Polaroid.getCroppedSize() : { width: Polaroid.FRAME_WIDTH, height: Polaroid.FRAME_HEIGHT };
+        this._hw.d = cw / cropped.width;
+        const layerW = cw * (Polaroid.SIG_W / cropped.width);
+        const layerH = cw * (Polaroid.SIG_H / cropped.height);
         const hw = this.dom.adjustHwCanvas;
         hw.width = Math.round(layerW * dpr);
         hw.height = Math.round(layerH * dpr);

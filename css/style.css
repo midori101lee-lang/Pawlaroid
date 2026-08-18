@@ -1470,10 +1470,10 @@ body {
    PNG 中签名区 y = 968 ~ 1198 = 77.2% ~ 95.5%
    x = 185 ~ 1071 = 14.76% ~ 85.4% */
 .handwrite-overlay {
-    left: 14.76% !important;
-    width: 70.73% !important;
-    top: 77.2% !important;
-    height: 18.3% !important;
+    left: 7% !important;
+    width: 86.28% !important;
+    top: 79.93% !important;
+    height: 19.73% !important;
     z-index: 3 !important;
     pointer-events: none;
     touch-action: none;
@@ -1914,10 +1914,10 @@ body {
 /* 手写独立图层：默认落在拍立得白边签名区，可被拖拽 / 缩放 / 旋转 */
 .adjust-hw-layer {
     position: absolute;
-    left: 14.76%;
-    top: 77.2%;
-    width: 70.73%;
-    height: 18.3%;
+    left: 7%;
+    top: 79.93%;
+    width: 86.28%;
+    height: 19.73%;
     transform-origin: 50% 50%;
     touch-action: none;
     cursor: grab;

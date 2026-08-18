@@ -30,6 +30,8 @@ const Polaroid = {
     /* _cropToContent() 后填充，供 getPhotoRegion/getSignatureRegion 调整坐标 */
     _cropOffsetX: 0,
     _cropOffsetY: 0,
+    _cropW: 0,   // 裁剪后画布宽（0 = 未裁剪，回退到 FRAME_WIDTH）
+    _cropH: 0,   // 裁剪后画布高
 
     /* 帧图像缓存 */
     _frameCache: {},
@@ -79,6 +81,16 @@ const Polaroid = {
             y: this.SIG_Y - this._cropOffsetY,
             w: this.SIG_W,
             h: this.SIG_H
+        };
+    },
+
+    /**
+     * 获取裁剪后画布尺寸（供预览 overlay 的坐标换算，与导出一致）。
+     * 未裁剪时回退到原始 FRAME 尺寸。 */
+    getCroppedSize() {
+        return {
+            width: this._cropW || this.FRAME_WIDTH,
+            height: this._cropH || this.FRAME_HEIGHT
         };
     },
 
@@ -162,6 +174,8 @@ const Polaroid = {
         // 记录裁剪偏移，供 getPhotoRegion / getSignatureRegion 调整外部坐标
         this._cropOffsetX = marginL;
         this._cropOffsetY = marginT;
+        this._cropW = newW;
+        this._cropH = newH;
 
         const out = document.createElement('canvas');
         out.width = newW;
