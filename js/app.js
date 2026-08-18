@@ -1050,19 +1050,17 @@ const App = {
             this.state.basePolaroid = await this.buildPurePolaroid();
         }
 
-        /* 在结果页 canvas 显示照片区域（底图已含相纸 PNG） */
+        // 结果页直接显示完整「裁剪后相纸」（照片 + 相纸边框已合成），
+        // 与调整页(adjustPhotoCanvas) / 导出(buildFinalPolaroid) 同一坐标系，
+        // 避免照片(原 resultFrameBg 原始坐标)与签名(裁剪后坐标)错位。
         const displayCanvas = this.dom.resultCanvas;
-        const displayW = 320, displayH = 300;
-        displayCanvas.width = displayW;
-        displayCanvas.height = displayH;
+        const cropped = Polaroid.getCroppedSize
+            ? Polaroid.getCroppedSize()
+            : { width: Polaroid.FRAME_WIDTH, height: Polaroid.FRAME_HEIGHT };
+        displayCanvas.width = cropped.width;
+        displayCanvas.height = cropped.height;
         const ctx = displayCanvas.getContext('2d');
-        // 从拍立得画布中取出照片区域（裁剪后坐标）
-        const photo = Polaroid.getPhotoRegion();
-        ctx.drawImage(
-            this.state.basePolaroid,
-            photo.x, photo.y, photo.w, photo.h,
-            0, 0, displayW, displayH
-        );
+        ctx.drawImage(this.state.basePolaroid, 0, 0);
 
         /* 手写 overlay 画布（覆盖拍立得白边签名区）
            内部分辨率与 Handwriting buffer 一致，便于 1:1 映射 */
