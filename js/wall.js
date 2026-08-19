@@ -82,6 +82,8 @@ const Wall = {
         this._renderWallSwitch();
         // 预加载贴纸配置（http 下 fetch stickers.json；file:// 下回退注入数组）
         this._loadStickerConfig();
+        // 预加载固定件配置（图钉/纽扣/磁铁）—— 不预加载则 _cache['pins'] 为空，工具箱面板图钉列表永远空
+        this._loadPinConfig();
         // 主题配置 + 背景应用（http 下 fetch 远程 JSON；file:// 下回退 window.PAW_WALL_THEMES）
         this._loadThemeConfig().then(() => {
             this._applyTheme(this.themeId, this.themeVariant, false);
@@ -299,15 +301,9 @@ const Wall = {
                 el.addEventListener('click', () => this._addDecor('pin', p));
                 pinBox.appendChild(el);
             });
-            // 动态标题 / 提示文案（图钉 vs 纽扣 vs 磁铁）
+            // 动态标题（图钉/纽扣/磁铁）；提示文案统一由首次进入时的浮窗 _maybeShowPinTip 负责，面板内不再重复
             const titleEl = this.toolPanel.querySelector('.wall-pin-title');
-            const hintEl = this.toolPanel.querySelector('.wall-pin-section-hint');
             if (titleEl) titleEl.textContent = (att === 'magnet') ? '🧲 磁铁固定' : (att === 'button' ? '🧷 纽扣固定' : '📌 固定回忆');
-            if (hintEl) {
-                const noun = (att === 'magnet') ? '磁铁' : (att === 'button' ? '纽扣' : '图钉');
-                const ico = (att === 'magnet') ? '🧲' : '📌';
-                hintEl.innerHTML = `选一枚${noun}，<strong>拖到照片上</strong>把它固定在墙上${ico}（固定后将不能自由拖动）`;
-            }
         }
         // 小纸条：三色色卡，点击即新增对应颜色纸条
         const noteBox = this.toolPanel.querySelector('.wall-note-list');
@@ -465,6 +461,16 @@ const Wall = {
     async _loadStickerConfig() {
         let arr = await AssetManager.load('stickers');
         this._stickers = arr;
+        return arr;
+    },
+
+    /* 固定件配置加载：pins.json 描述图钉/纽扣/磁铁颜色参数，AttachmentFactory 据此生成 SVG data URI。
+       若不显式 load，AssetManager._cache['pins'] 为空，_getDecorSet 过滤后无项，工具箱永远空。 */
+    async _loadPinConfig() {
+        let arr = await AssetManager.load('pins');
+        this._pins = arr;
+        // 若工具箱面板已展开（如主题切换热路径），重新填充以反映新加载的数据
+        if (this.toolPanel && this.toolPanel.classList.contains('open')) this._fillTool();
         return arr;
     },
 
