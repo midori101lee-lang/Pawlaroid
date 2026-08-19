@@ -301,7 +301,7 @@ const Wall = {
             });
             // 动态标题 / 提示文案（图钉 vs 纽扣 vs 磁铁）
             const titleEl = this.toolPanel.querySelector('.wall-pin-title');
-            const hintEl = this.toolPanel.querySelector('.wall-pin-hint');
+            const hintEl = this.toolPanel.querySelector('.wall-pin-section-hint');
             if (titleEl) titleEl.textContent = (att === 'magnet') ? '🧲 磁铁固定' : (att === 'button' ? '🧷 纽扣固定' : '📌 固定回忆');
             if (hintEl) {
                 const noun = (att === 'magnet') ? '磁铁' : (att === 'button' ? '纽扣' : '图钉');
