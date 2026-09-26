@@ -341,9 +341,13 @@ const App = {
             el.style.boxShadow = '';
             el.style.transform = '';
 
-            // 没拖 = 轻点 → 跳转时光机
+            // 没拖 = 轻点 → 回到“最新生成照片”的结果页：
+            // 可再次调用 保存相册 / 放入时光机 / 放到展示墙（照片 ID 与内容不变，不会重新生成）。
+            // 若本次会话尚未生成过照片（如刷新后 state 已清空、消息栏回退到时光机最新），
+            // 则退回时光机以便查看兜底照片。
             if (!moved) {
-                App.goTimemachine();
+                if (App.state && App.state.lastPolaroidDataURL) App.goResult();
+                else App.goTimemachine();
             }
         };
 
