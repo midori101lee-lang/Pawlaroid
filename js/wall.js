@@ -778,6 +778,12 @@ const Wall = {
         const edge = this._edgeOf(it);
         if (edge) it.edge = edge;
         let cls = 'wall-item type-' + it.type + (it.id === this.selectedId ? ' selected' : '');
+        // 边缘贴纸：加 edge-* 类便于 CSS 把手翻转到贴墙内侧；
+        // 缩放支点设为贴边一侧（right/left center），保证放大后仍吸附边缘而非中心。
+        if (edge) {
+            cls += ' edge-' + edge;
+            el.style.transformOrigin = (edge === 'right') ? 'right center' : 'left center';
+        }
         if (it.type === 'polaroid' && it.pinned) {
             cls += ' pinned';                                  // 已固定：轻微“钉住”效果
             if (it.attachmentType) cls += ' att-' + it.attachmentType;  // 固定方式视觉（att-pin / att-magnet…）
@@ -831,11 +837,10 @@ const Wall = {
         del.className = 'wall-del';
         del.innerHTML = '×';
         del.title = '移除';
-        // 边缘贴纸：禁止自由缩放 / 旋转，仅保留删除
-        if (!edge) {
-            el.appendChild(scaleH);
-            el.appendChild(rotH);
-        }
+        // 边缘贴纸：保留等比缩放（与普通贴纸同一套尺度机制、同一 [0.3,3] 范围），
+        // 但锁定旋转为 0（不允许自由旋转）；普通贴纸：缩放 + 旋转 都放开。
+        if (!edge) el.appendChild(rotH);
+        el.appendChild(scaleH);
         el.appendChild(del);
         // 已吸附的图钉是“固定件”，不再提供旋转手柄（强调它是钉在照片上的工具）
         if (it.type === 'pin' && it.pinnedTo) rotH.style.display = 'none';
@@ -988,15 +993,19 @@ const Wall = {
 
     _startScale(e, it, el) {
         e.stopPropagation(); e.preventDefault();
+        const edge = this._edgeOf(it);
         const rect = el.getBoundingClientRect();
         const cx = rect.left + rect.width / 2;
         const cy = rect.top + rect.height / 2;
         const startDist = Math.hypot(e.clientX - cx, e.clientY - cy) || 1;
         const startScale = it.scale;
+        // 边缘贴纸：锚点随贴边一侧切换（与 _buildItem 一致），旋转锁定为 0；scale 沿用通用 [0.3,3]
+        const tx = (edge === 'left') ? '0%' : (edge === 'right') ? '-100%' : '-50%';
+        const rot = edge ? 0 : it.rotation;
         const move = (ev) => {
             const d = Math.hypot(ev.clientX - cx, ev.clientY - cy);
             it.scale = Math.max(0.3, Math.min(3, startScale * (d / startDist)));
-            el.style.transform = `translate(-50%,-50%) rotate(${it.rotation}deg) scale(${it.scale})`;
+            el.style.transform = `translate(${tx},-50%) rotate(${rot}deg) scale(${it.scale})`;
             if (it.type === 'polaroid') this._syncPinToPhoto(it, el);   // 缩放时图钉实时跟随锚点
         };
         const up = () => {

@@ -262,11 +262,20 @@ const App = {
 
     goHome() { this.switchView('home'); this.renderHomeRecent(); },
 
-    /* 首页"最近一张"回忆预览：读取统一记忆库最新一条（首页 = memories 最新一张） */
+    /* 首页"最近一张"回忆预览（消息栏）：显示【最新生成的照片】，与时光机解耦。
+       - 优先用 App.state.lastPolaroidDataURL：每次"生成 / 保存到相册 / 上墙 / 进时光机"
+         任一动作后都会刷新，记录的就是"玩家刚刚冲洗出来的那一张"；
+         即使这张照片尚未进入时光机，也应第一时间提示玩家，而不是等它进了时光机才显示。
+       - 仅当本次会话尚未生成过照片（如跨会话重载后 lastPolaroidDataURL 已清空），
+         才回退到时光机最新一条（PawMemory.latest()）作为兜底。
+       不改动时光机任何逻辑：时光机仍只记录被显式"保存到时光机"的照片，排序/历史/展示不变。 */
     renderHomeRecent() {
         const el = document.getElementById('homeRecent');
         if (!el) return;
-        const rec = (typeof PawMemory !== 'undefined') ? PawMemory.latest() : null;
+        const generated = (this.state && this.state.lastPolaroidDataURL) || '';
+        const rec = generated
+            ? { image: generated }
+            : (typeof PawMemory !== 'undefined' ? PawMemory.latest() : null);
         if (!rec || !rec.image) { el.hidden = true; return; }
         el.hidden = false;
         const img = el.querySelector('.home-recent-img');
@@ -1022,6 +1031,9 @@ const App = {
                 console.warn('[Result] 记录回忆失败（不影响页面展示）', e);
             }
         }
+        // 生成成功（或降级暂存成功）后，刷新首页"最近一张"消息栏：
+        // 让它反映"最新生成的照片"，而非等待进入时光机才更新。
+        this.renderHomeRecent();
     },
 
     /** 预填结果编辑页的宠物名字与日期（取自既有状态，避免重复填写） */

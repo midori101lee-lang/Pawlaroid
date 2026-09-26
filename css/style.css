@@ -2659,6 +2659,13 @@ body {
     box-shadow: 0 2px 5px rgba(120,80,40,0.25);
 }
 
+/* 边缘磁吸贴纸：把手翻到贴墙“内侧”，避免落在 stage 外不可点
+   - edge-right（贴右缘）：缩放柄默认在 right 外侧 → 移到 left 内侧；删除柄本就在 left 内侧，无需翻。
+   - edge-left（贴左缘）：删除柄默认在 left 外侧 → 移到 right 内侧；缩放柄本就在 right 内侧，无需翻。
+   旋转柄对边缘贴纸不挂载（_buildItem 已略过），故此处无需处理。 */
+.wall-item.edge-right .wall-scale { right: auto; left: -10px; }
+.wall-item.edge-left  .wall-del   { left: auto; right: -10px; }
+
 /* Layer 5 浮动工具（默认隐藏，点击 🐾 展开；不占据固定底部空间，避免遮挡拍立得） */
 .wall-fab {
     position: absolute;
