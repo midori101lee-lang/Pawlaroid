@@ -85,12 +85,14 @@ const WallExport = Object.assign({}, ExportShared, {
 
     /* 单个墙元素（忠实 DOM 还原）。bounds 为可选包围盒累加器 */
     async _drawWallItem(ctx, it, W, H, k, bounds) {
-        const cx = W * (it.x / 100);
-        const cy = H * (it.y / 100);
-        const rot = (it.rotation || 0) * Math.PI / 180;
         const base = it.baseSize || (Wall.BASE && Wall.BASE[it.type]) || 120;
         const s = (it.scale || 1) * k;
         let w = base * s, h = w;
+        // 磁性边缘贴纸：导出时同样贴边（与屏幕上 left:0/100% + 锚点切换一致），并锁定旋转 0
+        const edge = it.edge || (typeof Wall._edgeOf === 'function' ? Wall._edgeOf(it) : '');
+        const cx = (edge === 'left') ? w / 2 : (edge === 'right') ? (W - w / 2) : W * (it.x / 100);
+        const cy = H * (it.y / 100);
+        const rot = (edge ? 0 : (it.rotation || 0)) * Math.PI / 180;
 
         // 把旋转后的包围盒累加到 bounds（用于 content 裁切）
         const recordBounds = (bw, bh) => {

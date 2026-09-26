@@ -106,7 +106,8 @@ window.PAW_STICKERS = [
     "type": "sticker",
     "defaultScale": 1.0,
     "defaultRotation": 0,
-    "defaultSize": 96
+    "defaultSize": 96,
+    "edge": "right"
   },
   {
     "id": "half_cat",
@@ -115,6 +116,7 @@ window.PAW_STICKERS = [
     "type": "sticker",
     "defaultScale": 1.0,
     "defaultRotation": 0,
-    "defaultSize": 96
+    "defaultSize": 96,
+    "edge": "left"
   }
 ];

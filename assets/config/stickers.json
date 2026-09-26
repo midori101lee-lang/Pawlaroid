@@ -105,7 +105,8 @@
     "type": "sticker",
     "defaultScale": 1.0,
     "defaultRotation": 0,
-    "defaultSize": 96
+    "defaultSize": 96,
+    "edge": "right"
   },
   {
     "id": "half_cat",
@@ -114,6 +115,7 @@
     "type": "sticker",
     "defaultScale": 1.0,
     "defaultRotation": 0,
-    "defaultSize": 96
+    "defaultSize": 96,
+    "edge": "left"
   }
 ]

@@ -504,15 +504,19 @@ const Wall = {
         if (!cfg.dataUri && window.ASSET_CONFIG && window.ASSET_CONFIG.resolve) {
             src = window.ASSET_CONFIG.resolve(cfg.image || cfg.file);
         }
+        const isEdge = !!(cfg.edge);   // 磁性边缘贴纸：right=贴右边缘 / left=贴左边缘
         const item = {
             id: type[0] + '_' + Date.now() + '_' + Math.floor(Math.random() * 1e4),
             type,
             decorId: cfg.id || '',     // 记录贴纸/图钉 id，供 Exporter 反查内联资源
             src: src,
             x: 50, y: 50,
-            rotation: (cfg.defaultRotation != null) ? cfg.defaultRotation : this._rand(-8, 8),
+            // 边缘贴纸锁定旋转为 0（不允许自由旋转）；普通贴纸沿用默认/随机轻微旋转
+            rotation: isEdge ? 0 : ((cfg.defaultRotation != null) ? cfg.defaultRotation : this._rand(-8, 8)),
             scale: (cfg.defaultScale != null) ? cfg.defaultScale : 1,
-            baseSize: cfg.defaultSize || this.BASE[type]
+            baseSize: cfg.defaultSize || this.BASE[type],
+            // 边缘约束：空串 = 普通自由贴纸；right/left = 吸附对应边缘、仅允许纵向拖动
+            edge: cfg.edge || ''
         };
         this.data.push(item);
         this._save();
@@ -561,6 +565,18 @@ const Wall = {
             return window.ASSET_CONFIG.resolve(cfg.image);
         }
         return cfg.file || cfg.image || '';
+    },
+
+    /* 解析 item 的边缘约束（磁性边缘贴纸）：
+       - 优先用已持久化的 it.edge；
+       - 兼容“本功能上线前已存入墙内”的旧贴纸实例：按 decorId 反查贴纸配置，
+         若配置含 edge 则回填，使旧实例也获得边缘约束（无需迁移既有墙数据）。
+       非 sticker 类型一律返回空串（普通物件，不受边缘约束）。 */
+    _edgeOf(it) {
+        if (it.type !== 'sticker') return '';
+        if (it.edge) return it.edge;
+        const cfg = (this._stickers || []).find(s => s.id === it.decorId);
+        return (cfg && cfg.edge) ? cfg.edge : '';
     },
 
     /* 图钉吸附/绑定检测（在拖拽 move 中每帧调用）：
@@ -758,6 +774,9 @@ const Wall = {
 
     _buildItem(it) {
         const el = document.createElement('div');
+        // 边缘约束：right=贴右边缘 / left=贴左边缘 / ''=普通自由贴纸；回填旧实例的 it.edge
+        const edge = this._edgeOf(it);
+        if (edge) it.edge = edge;
         let cls = 'wall-item type-' + it.type + (it.id === this.selectedId ? ' selected' : '');
         if (it.type === 'polaroid' && it.pinned) {
             cls += ' pinned';                                  // 已固定：轻微“钉住”效果
@@ -777,10 +796,13 @@ const Wall = {
         } else {
             el.style.width = base + 'px';
         }
-        el.style.left = it.x + '%';
+        // 边缘贴纸：X 由边缘约束（left:0/100% + 水平锚点切换），锁定旋转为 0；
+        // 普通贴纸：居中锚点 translate(-50%,-50%)，自由旋转。
+        el.style.left = (edge === 'left') ? '0%' : (edge === 'right') ? '100%' : it.x + '%';
         el.style.top = it.y + '%';
-        el.style.setProperty('--r', it.rotation + 'deg');
-        el.style.transform = `translate(-50%,-50%) rotate(${it.rotation}deg) scale(${it.scale})`;
+        const tx = (edge === 'left') ? '0%' : (edge === 'right') ? '-100%' : '-50%';
+        el.style.setProperty('--r', (edge ? 0 : it.rotation) + 'deg');
+        el.style.transform = `translate(${tx},-50%) rotate(${edge ? 0 : it.rotation}deg) scale(${it.scale})`;
 
         // 内容：小纸条用文字（显示 + 可编辑 textarea），其余用图片
         if (it.type === 'note') {
@@ -809,8 +831,11 @@ const Wall = {
         del.className = 'wall-del';
         del.innerHTML = '×';
         del.title = '移除';
-        el.appendChild(scaleH);
-        el.appendChild(rotH);
+        // 边缘贴纸：禁止自由缩放 / 旋转，仅保留删除
+        if (!edge) {
+            el.appendChild(scaleH);
+            el.appendChild(rotH);
+        }
         el.appendChild(del);
         // 已吸附的图钉是“固定件”，不再提供旋转手柄（强调它是钉在照片上的工具）
         if (it.type === 'pin' && it.pinnedTo) rotH.style.display = 'none';
@@ -903,13 +928,20 @@ const Wall = {
         const rect = this.stage.getBoundingClientRect();
         const startX = e.clientX, startY = e.clientY;
         const startL = it.x, startT = it.y;
+        const edge = this._edgeOf(it);   // 边缘贴纸：X 由边缘约束，仅允许纵向拖动
         const move = (ev) => {
             const dx = (ev.clientX - startX) / rect.width * 100;
             const dy = (ev.clientY - startY) / rect.height * 100;
-            it.x = Math.max(0, Math.min(100, startL + dx));
-            it.y = Math.max(0, Math.min(100, startT + dy));
-            el.style.left = it.x + '%';
-            el.style.top = it.y + '%';
+            if (edge) {
+                // 边缘贴纸：X 恒由边缘约束（不可横向拖离），只允许纵向拖动并限制上下边界
+                it.y = Math.max(0, Math.min(100, startT + dy));
+                el.style.top = it.y + '%';
+            } else {
+                it.x = Math.max(0, Math.min(100, startL + dx));
+                it.y = Math.max(0, Math.min(100, startT + dy));
+                el.style.left = it.x + '%';
+                el.style.top = it.y + '%';
+            }
             // 固定态（不改动照片自身位移逻辑，仅让关联图钉跟随）：图钉随照片移动
             if (it.type === 'polaroid') this._syncPinToPhoto(it, el);
             // 图钉：在拖拽中实时检测与照片的吸附/绑定/解除（不改动通用拖拽算法）
